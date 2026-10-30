@@ -11,11 +11,29 @@ module "argocd" {
 module "backstage_app" {
   source = "./modules/backstage-app"
 
-  argocd_namespace   = var.argocd_namespace
-  app_namespace      = var.backstage_namespace
-  repo_url           = var.backstage_repo_url
-  repo_path          = var.backstage_repo_path
-  target_revision    = var.backstage_target_revision
+  argocd_namespace = var.argocd_namespace
+  app_namespace    = var.backstage_namespace
+  repo_url         = var.backstage_repo_url
+  repo_path        = var.backstage_repo_path
+  target_revision  = var.backstage_target_revision
 
   depends_on = [module.argocd]
+}
+
+# 3. Grafana, wired to the Prometheus server already installed by
+#    kube-demo-2026/eks (release "prometheus", namespace "monitoring").
+module "grafana" {
+  source = "./modules/grafana"
+
+  namespace            = var.grafana_namespace
+  chart_version        = var.grafana_chart_version
+  prometheus_namespace = var.prometheus_namespace
+}
+
+# 4. Fluentd, shipping container logs cluster-wide.
+module "fluentd" {
+  source = "./modules/fluentd"
+
+  namespace     = var.fluentd_namespace
+  chart_version = var.fluentd_chart_version
 }

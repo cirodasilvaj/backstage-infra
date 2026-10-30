@@ -1,8 +1,10 @@
 # backstage-infra
 
-Backstage.io + ArgoCD on top of the EKS cluster already provisioned by
-[`kube-demo-2026`](https://github.com/cirobessa/kube-demo-2026) (the
-`eks/` module there — cluster name `kube-demo-eks`, region `us-east-1`).
+Backstage.io + ArgoCD + Grafana + Fluentd on top of the EKS cluster already
+provisioned by [`kube-demo-2026`](https://github.com/cirobessa/kube-demo-2026)
+(the `eks/` module there — cluster name `kube-demo-eks`, region
+`us-east-1`), which also installs Prometheus. Grafana here is wired to that
+cluster's `prometheus-server.monitoring` service as its default datasource.
 
 This repo never touches the cluster itself: it only installs workloads on
 top of it.
@@ -19,6 +21,13 @@ top of it.
    `backstage` namespace (`prune: true`, `selfHeal: true`). Terraform is
    only used once, to bootstrap ArgoCD and register the Application — it
    does not manage the Backstage Deployment/Service directly.
+4. `terraform/modules/grafana` installs Grafana via the official
+   `grafana/grafana` Helm chart, namespace `grafana`, pre-wired to the
+   Prometheus server from `kube-demo-2026/eks`.
+5. `terraform/modules/fluentd` installs Fluentd via the official
+   `fluent/fluentd` Helm chart, namespace `logging`, shipping container
+   logs cluster-wide (stdout only in this demo — swap in a real output
+   config for a destination like Elasticsearch/S3).
 
 ```
 terraform/                   bootstraps ArgoCD + registers the app

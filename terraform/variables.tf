@@ -45,3 +45,33 @@ variable "backstage_target_revision" {
   type        = string
   default     = "main"
 }
+
+variable "grafana_namespace" {
+  description = "Namespace where Grafana is installed"
+  type        = string
+  default     = "grafana"
+}
+
+variable "grafana_chart_version" {
+  description = "Version of the grafana/grafana Helm chart"
+  type        = string
+  default     = "8.6.4"
+}
+
+variable "prometheus_namespace" {
+  description = "Namespace where the Prometheus server (installed by kube-demo-2026/eks) lives"
+  type        = string
+  default     = "monitoring"
+}
+
+variable "fluentd_namespace" {
+  description = "Namespace where Fluentd is installed"
+  type        = string
+  default     = "logging"
+}
+
+variable "fluentd_chart_version" {
+  description = "Version of the fluent/fluentd Helm chart"
+  type        = string
+  default     = "0.5.3"
+}
