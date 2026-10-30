@@ -60,8 +60,8 @@ k8s-manifests/
 ```bash
 cd terraform
 terraform init \
-  -backend-config="bucket=backstate-infra-tfstate-<your-account-id>" \
-  -backend-config="key=backstate-infra/terraform.tfstate" \
+  -backend-config="bucket=backstage-infra-tfstate-<your-account-id>" \
+  -backend-config="key=backstage-infra/terraform.tfstate" \
   -backend-config="region=us-east-1" \
   -backend-config="use_lockfile=true"
 terraform apply

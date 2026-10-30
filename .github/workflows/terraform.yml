@@ -23,7 +23,7 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     concurrency:
-      group: tf-backstate-infra
+      group: tf-backstage-infra
       cancel-in-progress: false
     defaults:
       run:
@@ -51,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          BUCKET="backstate-infra-tfstate-${ACCOUNT_ID}"
+          BUCKET="backstage-infra-tfstate-${ACCOUNT_ID}"
           echo "STATE_BUCKET=${BUCKET}" >> "$GITHUB_ENV"
           if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
             echo "State bucket ${BUCKET} already exists."
@@ -69,7 +69,7 @@ jobs:
         run: |
           terraform init -input=false \
             -backend-config="bucket=${STATE_BUCKET}" \
-            -backend-config="key=backstate-infra/terraform.tfstate" \
+            -backend-config="key=backstage-infra/terraform.tfstate" \
             -backend-config="region=${AWS_REGION}" \
             -backend-config="use_lockfile=true"
 

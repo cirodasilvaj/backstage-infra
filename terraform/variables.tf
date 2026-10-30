@@ -31,7 +31,7 @@ variable "backstage_namespace" {
 variable "backstage_repo_url" {
   description = "Git repo ArgoCD watches for the Backstage manifests"
   type        = string
-  default     = "https://github.com/cirodasilvaj/backstate-infra.git"
+  default     = "https://github.com/cirodasilvaj/backstage-infra.git"
 }
 
 variable "backstage_repo_path" {
