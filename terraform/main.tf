@@ -11,11 +11,24 @@ module "argocd" {
 module "backstage_app" {
   source = "./modules/backstage-app"
 
-  argocd_namespace   = var.argocd_namespace
-  app_namespace      = var.backstage_namespace
-  repo_url           = var.backstage_repo_url
-  repo_path          = var.backstage_repo_path
-  target_revision    = var.backstage_target_revision
+  argocd_namespace = var.argocd_namespace
+  app_namespace    = var.backstage_namespace
+  repo_url         = var.backstage_repo_url
+  repo_path        = var.backstage_repo_path
+  target_revision  = var.backstage_target_revision
+
+  depends_on = [module.argocd]
+}
+
+# 3. Register kube-prometheus-stack (Prometheus/Alertmanager/Grafana) as an
+#    ArgoCD Application so the cluster has standard observability instead
+#    of none at all.
+module "monitoring_app" {
+  source = "./modules/monitoring-app"
+
+  argocd_namespace = var.argocd_namespace
+  app_namespace    = var.monitoring_namespace
+  chart_version    = var.monitoring_chart_version
 
   depends_on = [module.argocd]
 }

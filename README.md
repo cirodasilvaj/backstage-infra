@@ -14,21 +14,29 @@ top of it.
 2. `terraform/modules/backstage-app` creates one ArgoCD `Application`
    resource (rendered from `k8s-manifests/argo/application-backstage.yaml`)
    that points ArgoCD at `k8s-manifests/backstage` in this same repo.
-3. From there on, **ArgoCD owns Backstage**: any change pushed to
+3. `terraform/modules/monitoring-app` creates a second ArgoCD `Application`
+   (rendered from `k8s-manifests/argo/application-monitoring.yaml`) that
+   points at the upstream `kube-prometheus-stack` Helm chart — standard
+   Prometheus + Alertmanager + Grafana observability for the cluster,
+   which didn't exist anywhere before.
+4. From there on, **ArgoCD owns both**: any change pushed to
    `k8s-manifests/backstage/**` on `main` gets auto-synced into the
-   `backstage` namespace (`prune: true`, `selfHeal: true`). Terraform is
-   only used once, to bootstrap ArgoCD and register the Application — it
-   does not manage the Backstage Deployment/Service directly.
+   `backstage` namespace, and `kube-prometheus-stack` is kept in sync into
+   the `monitoring` namespace (`prune: true`, `selfHeal: true` for both).
+   Terraform is only used once, to bootstrap ArgoCD and register the
+   Applications — it does not manage the workloads directly.
 
 ```
-terraform/                   bootstraps ArgoCD + registers the app
+terraform/                   bootstraps ArgoCD + registers the apps
   main.tf, variables.tf, outputs.tf, providers.tf, backend.tf
   modules/argocd/            Helm install of ArgoCD
   modules/backstage-app/     ArgoCD Application CR for Backstage
+  modules/monitoring-app/    ArgoCD Application CR for kube-prometheus-stack
 
 k8s-manifests/
-  argo/application-backstage.yaml   template rendered by modules/backstage-app
-  backstage/                        what ArgoCD actually deploys (edit this to change Backstage)
+  argo/application-backstage.yaml    template rendered by modules/backstage-app
+  argo/application-monitoring.yaml   template rendered by modules/monitoring-app
+  backstage/                         what ArgoCD actually deploys (edit this to change Backstage)
 ```
 
 ## Prerequisites
@@ -95,6 +103,19 @@ Terraform run needed for that step.
 kubectl -n backstage port-forward svc/backstage 7007:7007
 # http://localhost:7007
 ```
+
+## 5. Reach Grafana / Prometheus
+
+```bash
+kubectl -n monitoring get secret monitoring-grafana \
+  -o jsonpath='{.data.admin-password}' | base64 -d
+kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80
+# http://localhost:3000 — user: admin
+```
+
+Prometheus and Alertmanager are also reachable in-cluster at
+`monitoring-kube-prometheus-prometheus:9090` and
+`monitoring-kube-prometheus-alertmanager:9093`.
 
 ## Notes / limitations
 

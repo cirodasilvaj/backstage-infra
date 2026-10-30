@@ -45,3 +45,15 @@ variable "backstage_target_revision" {
   type        = string
   default     = "main"
 }
+
+variable "monitoring_namespace" {
+  description = "Namespace ArgoCD will deploy kube-prometheus-stack into"
+  type        = string
+  default     = "monitoring"
+}
+
+variable "monitoring_chart_version" {
+  description = "Version of the kube-prometheus-stack Helm chart (prometheus-community/helm-charts)"
+  type        = string
+  default     = "65.5.1"
+}
