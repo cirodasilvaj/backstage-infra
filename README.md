@@ -1,4 +1,4 @@
-# backstate-infra
+# backstage-infra
 
 Backstage.io + ArgoCD on top of the EKS cluster already provisioned by
 [`kube-demo-2026`](https://github.com/cirobessa/kube-demo-2026) (the
