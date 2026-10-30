@@ -1,0 +1,59 @@
+# Rendered by terraform/modules/logging-app via templatefile().
+# Same pattern as application-monitoring.yaml: upstream chart, no git path.
+#
+# Only the output stage (04_outputs.conf) is overridden — the chart's own
+# 01_sources/02_filters/03_dispatch stages (tail containers, enrich with
+# kubernetes_metadata, emit prometheus metrics) are left as shipped by
+# https://github.com/fluent/helm-charts, swapping only the final sink from
+# its default (a local Elasticsearch that doesn't exist in this cluster)
+# to CloudWatch Logs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: logging
+  namespace: ${argocd_namespace}
+spec:
+  project: default
+  source:
+    repoURL: https://fluent.github.io/helm-charts
+    chart: fluentd
+    targetRevision: ${chart_version}
+    helm:
+      releaseName: fluentd
+      values: |
+        image:
+          repository: fluent/fluentd-kubernetes-daemonset
+          tag: v1.20-debian-cloudwatch-1
+
+        serviceAccount:
+          create: true
+          name: fluentd
+          annotations:
+            eks.amazonaws.com/role-arn: ${fluentd_role_arn}
+
+        env:
+          - name: AWS_REGION
+            value: "${aws_region}"
+          - name: CLUSTER_NAME
+            value: "${cluster_name}"
+
+        fileConfigs:
+          04_outputs.conf: |-
+            <label @OUTPUT>
+              <match **>
+                @type cloudwatch_logs
+                log_group_name "/eks/#{ENV['CLUSTER_NAME']}/containers"
+                auto_create_stream true
+                use_tag_as_stream true
+                region "#{ENV['AWS_REGION']}"
+              </match>
+            </label>
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${app_namespace}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

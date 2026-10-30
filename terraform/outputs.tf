@@ -17,3 +17,18 @@ output "backstage_port_forward_command" {
   description = "Run this to reach the Backstage UI at http://localhost:7007 once ArgoCD has synced it"
   value       = "kubectl -n ${var.backstage_namespace} port-forward svc/backstage 7007:7007"
 }
+
+output "grafana_get_admin_password_command" {
+  description = "Run this after apply to retrieve the Grafana admin password"
+  value       = "kubectl -n ${var.monitoring_namespace} get secret monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 -d"
+}
+
+output "grafana_port_forward_command" {
+  description = "Run this to reach the Grafana UI at http://localhost:3000 once ArgoCD has synced it"
+  value       = "kubectl -n ${var.monitoring_namespace} port-forward svc/monitoring-grafana 3000:80"
+}
+
+output "cloudwatch_log_group" {
+  description = "CloudWatch Logs group Fluentd writes container logs into, once ArgoCD has synced it"
+  value       = "/eks/${var.eks_cluster_name}/containers"
+}

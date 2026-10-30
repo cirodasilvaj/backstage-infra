@@ -1,0 +1,27 @@
+# Rendered by terraform/modules/monitoring-app via templatefile().
+# Same pattern as application-backstage.yaml, but the source is the
+# upstream Helm chart directly (no git path) since kube-prometheus-stack
+# is a third-party chart, not something this repo owns.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: ${argocd_namespace}
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: ${chart_version}
+    helm:
+      releaseName: monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${app_namespace}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

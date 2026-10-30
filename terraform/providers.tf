@@ -32,6 +32,14 @@ data "aws_eks_cluster_auth" "target" {
   name = var.eks_cluster_name
 }
 
+# Same cross-repo pattern as the cluster above: the Fluentd IRSA role is
+# created in kube-demo-2026/eks (where the cluster's OIDC provider lives),
+# named "${eks_cluster_name}-fluentd-role". Looked up by name, same AWS
+# account/region as the cluster.
+data "aws_iam_role" "fluentd" {
+  name = "${var.eks_cluster_name}-fluentd-role"
+}
+
 provider "kubernetes" {
   host                   = data.aws_eks_cluster.target.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.target.certificate_authority[0].data)
