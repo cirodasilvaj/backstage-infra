@@ -1,0 +1,45 @@
+# The image below is a placeholder. Backstage has no generic public image —
+# every installation scaffolds and builds its own app with
+# `npx @backstage/create-app`, then builds/pushes a container image from it.
+# Point `image` at that image (e.g. the ECR/GHCR repo your app gets built
+# into) before ArgoCD can actually bring this Deployment up healthy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage
+  namespace: backstage
+  labels:
+    app: backstage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage
+  template:
+    metadata:
+      labels:
+        app: backstage
+    spec:
+      containers:
+        - name: backstage
+          image: ghcr.io/your-org/backstage-app:latest
+          ports:
+            - containerPort: 7007
+          volumeMounts:
+            - name: app-config
+              mountPath: /app/app-config.yaml
+              subPath: app-config.yaml
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 7007
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 7007
+            initialDelaySeconds: 30
+      volumes:
+        - name: app-config
+          configMap:
+            name: backstage-app-config

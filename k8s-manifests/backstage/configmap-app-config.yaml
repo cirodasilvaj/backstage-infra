@@ -1,0 +1,27 @@
+# Minimal app-config for a demo instance: in-memory SQLite catalog, no
+# external database. Replace with a Postgres-backed app-config.production.yaml
+# before using this for anything beyond a demo.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backstage-app-config
+  namespace: backstage
+data:
+  app-config.yaml: |
+    app:
+      title: Backstage Demo
+      baseUrl: http://localhost:7007
+    organization:
+      name: kube-demo-2026
+    backend:
+      baseUrl: http://localhost:7007
+      listen:
+        port: 7007
+      cors:
+        origin: http://localhost:7007
+      database:
+        client: better-sqlite3
+        connection: ':memory:'
+    integrations: {}
+    catalog:
+      locations: []
