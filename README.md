@@ -19,12 +19,20 @@ top of it.
    points at the upstream `kube-prometheus-stack` Helm chart — standard
    Prometheus + Alertmanager + Grafana observability for the cluster,
    which didn't exist anywhere before.
-4. From there on, **ArgoCD owns both**: any change pushed to
+4. `terraform/modules/logging-app` creates a third ArgoCD `Application`
+   (rendered from `k8s-manifests/argo/application-logging.yaml`) that
+   points at the upstream `fluentd` chart, overriding only its output
+   stage to ship container logs to CloudWatch Logs
+   (`/eks/<cluster-name>/containers`) via the Fluentd IRSA role created in
+   `kube-demo-2026/eks` (`eks/irsa.tf`, looked up here by name). Log
+   aggregation didn't exist anywhere before either.
+5. From there on, **ArgoCD owns all three**: any change pushed to
    `k8s-manifests/backstage/**` on `main` gets auto-synced into the
-   `backstage` namespace, and `kube-prometheus-stack` is kept in sync into
-   the `monitoring` namespace (`prune: true`, `selfHeal: true` for both).
-   Terraform is only used once, to bootstrap ArgoCD and register the
-   Applications — it does not manage the workloads directly.
+   `backstage` namespace, and `kube-prometheus-stack`/`fluentd` are kept in
+   sync into the `monitoring`/`logging` namespaces (`prune: true`,
+   `selfHeal: true` for all). Terraform is only used once, to bootstrap
+   ArgoCD and register the Applications — it does not manage the
+   workloads directly.
 
 ```
 terraform/                   bootstraps ArgoCD + registers the apps
@@ -32,10 +40,12 @@ terraform/                   bootstraps ArgoCD + registers the apps
   modules/argocd/            Helm install of ArgoCD
   modules/backstage-app/     ArgoCD Application CR for Backstage
   modules/monitoring-app/    ArgoCD Application CR for kube-prometheus-stack
+  modules/logging-app/       ArgoCD Application CR for fluentd
 
 k8s-manifests/
   argo/application-backstage.yaml    template rendered by modules/backstage-app
   argo/application-monitoring.yaml   template rendered by modules/monitoring-app
+  argo/application-logging.yaml      template rendered by modules/logging-app
   backstage/                         what ArgoCD actually deploys (edit this to change Backstage)
 ```
 
@@ -116,6 +126,16 @@ kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80
 Prometheus and Alertmanager are also reachable in-cluster at
 `monitoring-kube-prometheus-prometheus:9090` and
 `monitoring-kube-prometheus-alertmanager:9093`.
+
+## 6. Reach the logs
+
+```bash
+aws logs tail /eks/kube-demo-eks/containers --follow --region us-east-1
+```
+
+Requires the Fluentd IRSA role (`kube-demo-eks-fluentd-role`, created by
+`kube-demo-2026/eks`) to already exist — `terraform apply` here fails at
+`data.aws_iam_role.fluentd` if that role hasn't been created yet.
 
 ## Notes / limitations
 

@@ -57,3 +57,15 @@ variable "monitoring_chart_version" {
   type        = string
   default     = "65.5.1"
 }
+
+variable "logging_namespace" {
+  description = "Namespace ArgoCD will deploy Fluentd into"
+  type        = string
+  default     = "logging"
+}
+
+variable "logging_chart_version" {
+  description = "Version of the fluentd Helm chart (fluent/helm-charts)"
+  type        = string
+  default     = "0.6.0"
+}

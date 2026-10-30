@@ -32,3 +32,19 @@ module "monitoring_app" {
 
   depends_on = [module.argocd]
 }
+
+# 4. Register Fluentd as an ArgoCD Application, shipping container logs to
+#    CloudWatch Logs via the IRSA role created in kube-demo-2026/eks. Log
+#    aggregation didn't exist anywhere before this.
+module "logging_app" {
+  source = "./modules/logging-app"
+
+  argocd_namespace = var.argocd_namespace
+  app_namespace    = var.logging_namespace
+  chart_version    = var.logging_chart_version
+  fluentd_role_arn = data.aws_iam_role.fluentd.arn
+  aws_region       = var.aws_region
+  cluster_name     = var.eks_cluster_name
+
+  depends_on = [module.argocd]
+}
