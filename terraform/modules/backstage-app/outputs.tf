@@ -47,3 +47,13 @@ output "external_url_7007" {
   description = "External HTTP URL (port 7007) for the Backstage UI"
   value       = try("http://${kubernetes_service_v1.backstage_external.status[0].load_balancer[0].ingress[0].hostname}:7007", "")
 }
+
+output "basic_auth_user" {
+  description = "Basic authentication username for the Backstage web UI"
+  value       = var.auth_user
+}
+
+output "basic_auth_password" {
+  description = "Basic authentication password for the Backstage web UI"
+  value       = var.auth_password
+}

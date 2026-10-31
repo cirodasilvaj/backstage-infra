@@ -98,6 +98,16 @@ output "backstage_external_url_7007" {
   value       = module.backstage_app.external_url_7007
 }
 
+output "backstage_basic_auth_user" {
+  description = "Basic authentication username for the Backstage web UI"
+  value       = module.backstage_app.basic_auth_user
+}
+
+output "backstage_basic_auth_password" {
+  description = "Basic authentication password for the Backstage web UI"
+  value       = module.backstage_app.basic_auth_password
+}
+
 output "backstage_port_forward_command" {
   description = "Run this to reach the Backstage UI at http://localhost:7007 once ArgoCD has synced it"
   value       = "kubectl -n ${var.backstage_namespace} port-forward svc/backstage 7007:7007"

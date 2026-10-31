@@ -22,3 +22,15 @@ variable "target_revision" {
   description = "Git branch/tag ArgoCD tracks"
   type        = string
 }
+
+variable "auth_user" {
+  description = "Basic authentication username for the Backstage UI"
+  type        = string
+  default     = "admin"
+}
+
+variable "auth_password" {
+  description = "Basic authentication password for the Backstage UI"
+  type        = string
+  default     = "Backstage@2026"
+}

@@ -21,25 +21,43 @@ spec:
         app: backstage
     spec:
       containers:
-        - name: backstage
-          image: ghcr.io/your-org/backstage-app:latest
+        - name: backstage-auth-proxy
+          image: nginx:1.27-alpine
           ports:
             - containerPort: 7007
           volumeMounts:
             - name: app-config
-              mountPath: /app/app-config.yaml
-              subPath: app-config.yaml
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+            - name: app-config
+              mountPath: /usr/share/nginx/html/index.html
+              subPath: index.html
+            - name: basic-auth
+              mountPath: /etc/nginx/auth
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /healthcheck
               port: 7007
-            initialDelaySeconds: 10
+            initialDelaySeconds: 3
+            periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /healthcheck
               port: 7007
-            initialDelaySeconds: 30
+            initialDelaySeconds: 5
+            periodSeconds: 10
+        - name: backstage
+          image: roadiehq/community-backstage-image:latest
+          env:
+            - name: GITHUB_TOKEN
+              value: "demo-placeholder-token"
+          ports:
+            - containerPort: 7000
       volumes:
         - name: app-config
           configMap:
             name: backstage-app-config
+        - name: basic-auth
+          secret:
+            secretName: backstage-basic-auth

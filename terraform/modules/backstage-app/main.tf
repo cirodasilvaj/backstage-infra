@@ -11,6 +11,23 @@ resource "kubernetes_manifest" "backstage_application" {
   }))
 }
 
+# Basic authentication secret (.htpasswd) for the Backstage web UI proxy.
+resource "kubernetes_secret_v1" "backstage_basic_auth" {
+  metadata {
+    name      = "backstage-basic-auth"
+    namespace = var.app_namespace
+    labels = {
+      app = "backstage"
+    }
+  }
+
+  data = {
+    ".htpasswd" = "${var.auth_user}:{SHA}${base64sha1(var.auth_password)}\n"
+  }
+
+  type = "Opaque"
+}
+
 # External LoadBalancer service for demo access to the Backstage UI.
 resource "kubernetes_service_v1" "backstage_external" {
   metadata {
@@ -48,5 +65,8 @@ resource "kubernetes_service_v1" "backstage_external" {
 
   wait_for_load_balancer = true
 
-  depends_on = [kubernetes_manifest.backstage_application]
+  depends_on = [
+    kubernetes_manifest.backstage_application,
+    kubernetes_secret_v1.backstage_basic_auth,
+  ]
 }

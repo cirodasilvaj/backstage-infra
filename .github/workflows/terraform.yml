@@ -109,13 +109,18 @@ jobs:
               echo "unknown action: $ACTION" >&2; exit 1 ;;
           esac
 
-      - name: Show outputs and cluster status
+      - name: Sync Backstage manifests and show outputs
         if: github.event_name == 'push' || github.event.inputs.action == 'apply' || github.event.inputs.action == ''
         run: |
+          kubectl apply -f ../k8s-manifests/backstage/
+          kubectl rollout status deployment/backstage -n backstage --timeout=180s || true
           terraform output
-          sleep 10
           echo "--- CLUSTER PODS ---"
           kubectl get pods -A
           echo "--- CLUSTER SERVICES ---"
           kubectl get svc -A
+          LB_URL=$(terraform output -raw backstage_external_url)
+          echo "--- TESTING EXTERNAL BACKSTAGE BASIC AUTH AT ${LB_URL} ---"
+          curl -s -o /dev/null -w "Unauthenticated HTTP Status: %{http_code}\n" "${LB_URL}/" || true
+          curl -s -u "admin:Backstage@2026" -o /dev/null -w "Authenticated HTTP Status: %{http_code}\n" "${LB_URL}/" || true
         continue-on-error: true

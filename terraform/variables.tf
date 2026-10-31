@@ -46,6 +46,18 @@ variable "backstage_target_revision" {
   default     = "main"
 }
 
+variable "backstage_auth_user" {
+  description = "Basic authentication username for the Backstage web UI"
+  type        = string
+  default     = "admin"
+}
+
+variable "backstage_auth_password" {
+  description = "Basic authentication password for the Backstage web UI"
+  type        = string
+  default     = "Backstage@2026"
+}
+
 variable "grafana_namespace" {
   description = "Namespace where Grafana is installed"
   type        = string

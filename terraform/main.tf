@@ -16,6 +16,8 @@ module "backstage_app" {
   repo_url         = var.backstage_repo_url
   repo_path        = var.backstage_repo_path
   target_revision  = var.backstage_target_revision
+  auth_user        = var.backstage_auth_user
+  auth_password    = var.backstage_auth_password
 
   depends_on = [module.argocd]
 }

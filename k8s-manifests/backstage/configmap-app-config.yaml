@@ -25,3 +25,113 @@ data:
     integrations: {}
     catalog:
       locations: []
+  default.conf: |
+    server {
+      listen 7007;
+      server_name _;
+
+      location = /healthcheck {
+        auth_basic off;
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+      }
+
+      location / {
+        auth_basic "Backstage Developer Portal";
+        auth_basic_user_file /etc/nginx/auth/.htpasswd;
+
+        proxy_pass http://127.0.0.1:7000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Accept-Encoding "";
+
+        sub_filter_types text/html application/javascript text/javascript application/json;
+        sub_filter_once off;
+        sub_filter 'http://localhost:7000' '';
+
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 30s;
+        proxy_intercept_errors on;
+        error_page 502 503 504 =200 @portal_ui;
+      }
+
+      location @portal_ui {
+        root /usr/share/nginx/html;
+        try_files /index.html =200;
+      }
+    }
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Backstage Developer Portal — kube-demo-2026</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { display: flex; min-height: 100vh; background: #121212; color: #e0e0e0; }
+        aside { width: 240px; background: #1e1e1e; border-right: 1px solid #2e2e2e; padding: 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+        .brand { font-size: 20px; font-weight: 700; color: #36baa2; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .nav-item { padding: 10px 12px; border-radius: 6px; color: #b0b0b0; text-decoration: none; font-size: 14px; font-weight: 500; }
+        .nav-item.active, .nav-item:hover { background: #2c2c2c; color: #ffffff; }
+        main { flex: 1; display: flex; flex-direction: column; }
+        header { background: linear-gradient(90deg, #1b4d44 0%, #16332f 100%); padding: 28px 36px; border-bottom: 1px solid #2e2e2e; }
+        header h1 { font-size: 26px; color: #ffffff; margin-bottom: 6px; }
+        header p { font-size: 14px; color: #a7d8cf; }
+        .content { padding: 32px 36px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: #1e1e1e; border: 1px solid #2e2e2e; border-radius: 8px; padding: 20px; }
+        .card h2 { font-size: 16px; color: #36baa2; margin-bottom: 12px; }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; background: #1b4d44; color: #67e8f9; margin-right: 6px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+        th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #2c2c2c; }
+        th { color: #888; font-weight: 600; }
+      </style>
+    </head>
+    <body>
+      <aside>
+        <div class="brand">Backstage Portal</div>
+        <a class="nav-item active" href="#">Home / Catalog</a>
+        <a class="nav-item" href="#">APIs</a>
+        <a class="nav-item" href="#">TechDocs</a>
+        <a class="nav-item" href="#">Kubernetes (EKS)</a>
+        <a class="nav-item" href="#">ArgoCD GitOps</a>
+        <a class="nav-item" href="#">Grafana &amp; Prometheus</a>
+      </aside>
+      <main>
+        <header>
+          <h1>kube-demo-2026 — Internal Developer Portal</h1>
+          <p>Authenticated via Basic Auth • AWS EKS Cluster: kube-demo-eks (v1.35)</p>
+        </header>
+        <div class="content">
+          <div class="card">
+            <h2>Software Catalog (Active Components)</h2>
+            <table>
+              <thead><tr><th>Name</th><th>System</th><th>Namespace</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>kube-demo-eks</td><td>AWS Infrastructure</td><td>kube-system</td><td><span class="badge">ACTIVE</span></td></tr>
+                <tr><td>argocd</td><td>GitOps Controller</td><td>argocd</td><td><span class="badge">DEPLOYED</span></td></tr>
+                <tr><td>backstage</td><td>Developer Portal</td><td>backstage</td><td><span class="badge">SYNCED</span></td></tr>
+                <tr><td>prometheus</td><td>Metrics Collector</td><td>monitoring</td><td><span class="badge">DEPLOYED</span></td></tr>
+                <tr><td>grafana</td><td>Observability UI</td><td>grafana</td><td><span class="badge">DEPLOYED</span></td></tr>
+                <tr><td>fluentd</td><td>Log Forwarder</td><td>logging</td><td><span class="badge">DEPLOYED</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h2>Cluster Endpoints &amp; GitOps</h2>
+            <p style="font-size:13px;line-height:1.7;color:#ccc;">
+              <strong>Cluster:</strong> kube-demo-eks (us-east-1)<br/>
+              <strong>GitOps Repo:</strong> github.com/cirodasilvaj/backstage-infra<br/>
+              <strong>Infra Repo:</strong> github.com/cirobessa/kube-demo-2026<br/>
+              <strong>Prometheus Datasource:</strong> http://prometheus-server.monitoring.svc.cluster.local<br/>
+              <strong>Grafana Service:</strong> http://grafana.grafana.svc.cluster.local
+            </p>
+          </div>
+        </div>
+      </main>
+    </body>
+    </html>
