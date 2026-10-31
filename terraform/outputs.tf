@@ -235,6 +235,31 @@ output "grafana_prometheus_datasource_url" {
   value       = module.grafana.prometheus_datasource_url
 }
 
+output "grafana_external_lb_hostname" {
+  description = "AWS LoadBalancer DNS hostname for external access to Grafana"
+  value       = module.grafana.external_lb_hostname
+}
+
+output "grafana_external_url" {
+  description = "Public HTTP URL (port 80) to access the Grafana UI"
+  value       = module.grafana.external_url
+}
+
+output "grafana_external_url_3000" {
+  description = "Public HTTP URL (port 3000) to access the Grafana UI"
+  value       = module.grafana.external_url_3000
+}
+
+output "grafana_admin_user" {
+  description = "Admin username for the Grafana Web UI"
+  value       = module.grafana.admin_user
+}
+
+output "grafana_admin_password" {
+  description = "Admin password for the Grafana Web UI"
+  value       = module.grafana.admin_password
+}
+
 output "grafana_admin_password_command" {
   description = "Run this after apply to retrieve the Grafana admin password"
   value       = "kubectl -n ${module.grafana.namespace} get secret grafana -o jsonpath='{.data.admin-password}' | base64 -d"

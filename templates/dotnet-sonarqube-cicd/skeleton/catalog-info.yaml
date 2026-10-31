@@ -1,0 +1,12 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dotnet-csharp-demo-app
+  description: Aplicação .NET 8 C# com pipeline CI/CD e QA/Segurança via SonarQube
+  annotations:
+    backstage.io/kubernetes-id: dotnet-csharp-demo-app
+    sonarqube.org/project-key: dotnet-csharp-demo-app
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/platform-team

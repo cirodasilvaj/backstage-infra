@@ -1,0 +1,86 @@
+name: CI/CD Pipeline - QA Tests, SonarQube Security Gate & EKS GitOps
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  APP_NAME: ${{ values.component_id | default("python-demo-app") }}
+  REGISTRY: ghcr.io
+
+jobs:
+  qa-and-sonarqube:
+    name: 1. QA Unit Tests & SonarQube Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies & QA test tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov flake8 bandit
+
+      - name: Run QA Unit Tests & Generate XML Coverage Report for SonarQube
+        run: |
+          pytest test_app.py -v --cov=app --cov-report=xml:coverage.xml --junitxml=test-results.xml
+
+      - name: Run Bandit SAST Security Check (Python)
+        run: |
+          bandit -r app.py -f json -o bandit-report.json || true
+
+      - name: SonarQube Quality & Security Scan (SAST + OWASP)
+        uses: SonarSource/sonarqube-scan-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'http://sonarqube.sonarqube.svc.cluster.local:9000' }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ env.APP_NAME }}
+            -Dsonar.projectName=${{ env.APP_NAME }}
+            -Dsonar.sources=.
+            -Dsonar.tests=.
+            -Dsonar.test.inclusions=test_*.py
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.python.xunit.reportPath=test-results.xml
+            -Dsonar.qualitygate.wait=true
+
+  build-and-publish:
+    name: 2. Build & Push Container Image to GHCR
+    needs: qa-and-sonarqube
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.APP_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.APP_NAME }}:${{ github.sha }}

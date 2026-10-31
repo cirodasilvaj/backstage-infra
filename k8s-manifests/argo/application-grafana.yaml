@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-prometheus
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: kube-demo-2026
+    backstage.io/kubernetes-id: grafana
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/cirodasilvaj/backstage-infra.git
+    targetRevision: main
+    path: k8s-manifests/grafana
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,81 @@
+name: CI/CD Pipeline (.NET 8 C#) - QA Tests, SonarQube Security Gate & EKS GitOps
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  APP_NAME: ${{ values.component_id | default("dotnet-csharp-demo-app") }}
+  REGISTRY: ghcr.io
+
+jobs:
+  qa-and-sonarqube:
+    name: 1. QA Tests (.NET 8) & SonarQube Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 8.0 SDK & Java 17 (for SonarScanner)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Setup Java 17 for SonarScanner
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install dotnet-sonarscanner global tool
+        run: |
+          dotnet tool install --global dotnet-sonarscanner
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Begin SonarQube Analysis + Build + QA Verification + End Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'http://sonarqube.sonarqube.svc.cluster.local:9000' }}
+        run: |
+          dotnet sonarscanner begin \
+            /k:"${{ env.APP_NAME }}" \
+            /n:"${{ env.APP_NAME }}" \
+            /d:sonar.host.url="${SONAR_HOST_URL}" \
+            /d:sonar.token="${SONAR_TOKEN}" \
+            /d:sonar.qualitygate.wait=true
+          dotnet build DotnetDemoApp.csproj --configuration Release
+          dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+
+  build-and-publish:
+    name: 2. Build & Push Container Image to GHCR
+    needs: qa-and-sonarqube
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.APP_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.APP_NAME }}:${{ github.sha }}

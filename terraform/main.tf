@@ -54,6 +54,12 @@ module "grafana" {
   namespace            = var.grafana_namespace
   chart_version        = var.grafana_chart_version
   prometheus_namespace = var.prometheus_namespace
+  argocd_namespace     = var.argocd_namespace
+  repo_url             = var.backstage_repo_url
+  repo_path            = "k8s-manifests/grafana"
+  target_revision      = var.backstage_target_revision
+
+  depends_on = [module.argocd]
 }
 
 # 5. Fluentd, shipping container logs cluster-wide.

@@ -1,6 +1,9 @@
 resource "kubernetes_namespace" "grafana" {
   metadata {
     name = var.namespace
+    labels = {
+      "app.kubernetes.io/part-of" = "observability"
+    }
   }
 }
 
@@ -17,6 +20,16 @@ resource "helm_release" "grafana" {
   set {
     name  = "service.type"
     value = "ClusterIP"
+  }
+
+  set {
+    name  = "adminUser"
+    value = var.admin_user
+  }
+
+  set {
+    name  = "adminPassword"
+    value = var.admin_password
   }
 
   set {
@@ -50,4 +63,75 @@ resource "helm_release" "grafana" {
     name  = "datasources.datasources\\.yaml.datasources[0].isDefault"
     value = "true"
   }
+}
+
+# Register the dedicated k8s-manifests/grafana directory in ArgoCD
+resource "kubernetes_manifest" "grafana_application" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "grafana-metrics"
+      namespace = var.argocd_namespace
+      finalizers = [
+        "resources-finalizer.argocd.argoproj.io",
+      ]
+    }
+    spec = {
+      project = "default"
+      source = {
+        repoURL        = var.repo_url
+        targetRevision = var.target_revision
+        path           = var.repo_path
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = kubernetes_namespace.grafana.metadata[0].name
+      }
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+        syncOptions = [
+          "CreateNamespace=true",
+        ]
+      }
+    }
+  }
+}
+
+# External AWS LoadBalancer Service for Grafana UI (ports 80 and 3000)
+resource "kubernetes_service" "grafana_external" {
+  metadata {
+    name      = "grafana-external"
+    namespace = kubernetes_namespace.grafana.metadata[0].name
+    labels = {
+      "app.kubernetes.io/name" = "grafana"
+    }
+  }
+
+  spec {
+    type = "LoadBalancer"
+
+    selector = {
+      "app.kubernetes.io/name" = "grafana"
+    }
+
+    port {
+      name        = "http"
+      port        = 80
+      target_port = 3000
+      protocol    = "TCP"
+    }
+
+    port {
+      name        = "grafana-3000"
+      port        = 3000
+      target_port = 3000
+      protocol    = "TCP"
+    }
+  }
+
+  wait_for_load_balancer = true
 }
