@@ -10,3 +10,43 @@ resource "kubernetes_manifest" "backstage_application" {
     target_revision  = var.target_revision
   }))
 }
+
+# External LoadBalancer service for demo access to the Backstage UI.
+resource "kubernetes_service_v1" "backstage_external" {
+  metadata {
+    name      = "backstage-external"
+    namespace = var.app_namespace
+    labels = {
+      app = "backstage"
+    }
+    annotations = {
+      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+    }
+  }
+
+  spec {
+    type = "LoadBalancer"
+
+    selector = {
+      app = "backstage"
+    }
+
+    port {
+      name        = "http"
+      port        = 80
+      target_port = 7007
+      protocol    = "TCP"
+    }
+
+    port {
+      name        = "backstage"
+      port        = 7007
+      target_port = 7007
+      protocol    = "TCP"
+    }
+  }
+
+  wait_for_load_balancer = true
+
+  depends_on = [kubernetes_manifest.backstage_application]
+}

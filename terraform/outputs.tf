@@ -83,6 +83,21 @@ output "backstage_service_url" {
   value       = module.backstage_app.service_url
 }
 
+output "backstage_external_lb_hostname" {
+  description = "AWS LoadBalancer DNS hostname for external access to Backstage"
+  value       = module.backstage_app.external_lb_hostname
+}
+
+output "backstage_external_url" {
+  description = "External HTTP URL (port 80) for the Backstage UI"
+  value       = module.backstage_app.external_url
+}
+
+output "backstage_external_url_7007" {
+  description = "External HTTP URL (port 7007) for the Backstage UI"
+  value       = module.backstage_app.external_url_7007
+}
+
 output "backstage_port_forward_command" {
   description = "Run this to reach the Backstage UI at http://localhost:7007 once ArgoCD has synced it"
   value       = "kubectl -n ${var.backstage_namespace} port-forward svc/backstage 7007:7007"
@@ -125,7 +140,7 @@ output "grafana_admin_password_command" {
 
 output "grafana_port_forward_command" {
   description = "Run this to reach the Grafana UI at http://localhost:3000"
-  value       = "kubectl -n ${module.grafana.namespace} port-forward svc/grafana 3000:80"
+  value       = "kubectl -n ${module.grafana.namespace} get secret grafana >/dev/null && kubectl -n ${module.grafana.namespace} port-forward svc/grafana 3000:80"
 }
 
 output "fluentd_namespace" {

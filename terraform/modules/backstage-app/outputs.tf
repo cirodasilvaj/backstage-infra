@@ -32,3 +32,18 @@ output "service_url" {
   description = "Internal cluster URL for Backstage service"
   value       = "http://backstage.${var.app_namespace}.svc.cluster.local:7007"
 }
+
+output "external_lb_hostname" {
+  description = "AWS LoadBalancer DNS hostname for external access to Backstage"
+  value       = try(kubernetes_service_v1.backstage_external.status[0].load_balancer[0].ingress[0].hostname, "")
+}
+
+output "external_url" {
+  description = "External HTTP URL (port 80) for the Backstage UI"
+  value       = try("http://${kubernetes_service_v1.backstage_external.status[0].load_balancer[0].ingress[0].hostname}", "")
+}
+
+output "external_url_7007" {
+  description = "External HTTP URL (port 7007) for the Backstage UI"
+  value       = try("http://${kubernetes_service_v1.backstage_external.status[0].load_balancer[0].ingress[0].hostname}:7007", "")
+}
