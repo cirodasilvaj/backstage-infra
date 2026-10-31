@@ -21,45 +21,53 @@ type: kubernetes.io/service-account-token
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: backstage-kubernetes-reader
+  name: backstage-kubernetes-deployer
   labels:
     app: backstage
 rules:
   - apiGroups: [""]
     resources:
+      - namespaces
       - pods
       - pods/log
+      - pods/exec
       - services
       - configmaps
+      - secrets
       - endpoints
       - persistentvolumeclaims
-      - namespaces
-      - nodes
+      - serviceaccounts
       - events
       - resourcequotas
       - limitranges
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources:
+      - nodes
     verbs: ["get", "list", "watch"]
   - apiGroups: ["apps"]
     resources:
       - deployments
+      - deployments/scale
+      - deployments/rollback
       - replicasets
       - statefulsets
       - daemonsets
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["batch"]
     resources:
       - jobs
       - cronjobs
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["networking.k8s.io", "extensions"]
     resources:
       - ingresses
       - networkpolicies
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["autoscaling"]
     resources:
       - horizontalpodautoscalers
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["metrics.k8s.io"]
     resources:
       - nodes
@@ -70,7 +78,33 @@ rules:
       - applications
       - applicationsets
       - appprojects
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: backstage-kubernetes-deployer-binding
+  labels:
+    app: backstage
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: backstage-kubernetes-deployer
+subjects:
+  - kind: ServiceAccount
+    name: backstage
+    namespace: backstage
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: backstage-kubernetes-reader
+  labels:
+    app: backstage
+rules:
+  - apiGroups: ["", "apps", "batch", "networking.k8s.io", "extensions", "autoscaling", "metrics.k8s.io", "argoproj.io"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

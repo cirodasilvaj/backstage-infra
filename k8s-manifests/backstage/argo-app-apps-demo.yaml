@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: apps-demo-2026
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: apps-demo-2026
+    backstage.io/kubernetes-id: apps-demo-2026
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/cirodasilvaj/apps-demo-2026.git
+    targetRevision: main
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps-demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
