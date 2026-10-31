@@ -57,3 +57,13 @@ output "basic_auth_password" {
   description = "Basic authentication password for the Backstage web UI"
   value       = var.auth_password
 }
+
+output "db_dump_download_url" {
+  description = "Direct web URL to download the live RDS PostgreSQL dump (.sql)"
+  value       = try("http://${kubernetes_service_v1.backstage_external.status[0].load_balancer[0].ingress[0].hostname}/backstage-rds-dump.sql", "")
+}
+
+output "db_schema_download_url" {
+  description = "Direct web URL to download the base PostgreSQL schema (.sql)"
+  value       = try("http://${kubernetes_service_v1.backstage_external.status[0].load_balancer[0].ingress[0].hostname}/backstage-schema.sql", "")
+}

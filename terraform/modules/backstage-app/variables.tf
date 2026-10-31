@@ -34,3 +34,29 @@ variable "auth_password" {
   type        = string
   default     = "Backstage@2026"
 }
+
+variable "db_host" {
+  description = "RDS PostgreSQL hostname"
+  type        = string
+}
+
+variable "db_port" {
+  description = "RDS PostgreSQL port"
+  type        = string
+  default     = "5432"
+}
+
+variable "db_name" {
+  description = "RDS PostgreSQL database name"
+  type        = string
+}
+
+variable "db_username" {
+  description = "RDS PostgreSQL username"
+  type        = string
+}
+
+variable "db_password" {
+  description = "RDS PostgreSQL password"
+  type        = string
+}

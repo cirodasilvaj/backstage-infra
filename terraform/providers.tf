@@ -32,6 +32,10 @@ data "aws_eks_cluster_auth" "target" {
   name = var.eks_cluster_name
 }
 
+data "aws_vpc" "target" {
+  id = data.aws_eks_cluster.target.vpc_config[0].vpc_id
+}
+
 provider "kubernetes" {
   host                   = data.aws_eks_cluster.target.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.target.certificate_authority[0].data)

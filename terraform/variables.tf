@@ -58,6 +58,36 @@ variable "backstage_auth_password" {
   default     = "Backstage@2026"
 }
 
+variable "rds_db_identifier" {
+  description = "Identifier for the Backstage AWS RDS PostgreSQL instance"
+  type        = string
+  default     = "backstage-postgres"
+}
+
+variable "rds_instance_class" {
+  description = "Cheapest AWS RDS PostgreSQL instance class"
+  type        = string
+  default     = "db.t4g.micro"
+}
+
+variable "rds_db_name" {
+  description = "Initial PostgreSQL database name for Backstage"
+  type        = string
+  default     = "backstage_plugin_catalog"
+}
+
+variable "rds_db_username" {
+  description = "Master username for Backstage RDS PostgreSQL"
+  type        = string
+  default     = "backstage"
+}
+
+variable "rds_db_password" {
+  description = "Master password for Backstage RDS PostgreSQL"
+  type        = string
+  default     = "BackstageRds2026!"
+}
+
 variable "grafana_namespace" {
   description = "Namespace where Grafana is installed"
   type        = string

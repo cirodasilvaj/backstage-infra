@@ -6,11 +6,13 @@ on:
     paths:
       - "terraform/**"
       - "k8s-manifests/**"
+      - "db/**"
       - ".github/workflows/terraform.yml"
   pull_request:
     paths:
       - "terraform/**"
       - "k8s-manifests/**"
+      - "db/**"
   workflow_dispatch:
     inputs:
       action:

@@ -29,6 +29,27 @@ resource "kubernetes_secret_v1" "backstage_basic_auth" {
   type = "Opaque"
 }
 
+# RDS PostgreSQL connection credentials secret for Backstage and DB dump sidecar.
+resource "kubernetes_secret_v1" "backstage_db_credentials" {
+  metadata {
+    name      = "backstage-db-credentials"
+    namespace = var.app_namespace
+    labels = {
+      app = "backstage"
+    }
+  }
+
+  data = {
+    POSTGRES_HOST     = var.db_host
+    POSTGRES_PORT     = var.db_port
+    POSTGRES_DB       = var.db_name
+    POSTGRES_USER     = var.db_username
+    POSTGRES_PASSWORD = var.db_password
+  }
+
+  type = "Opaque"
+}
+
 # External LoadBalancer service for demo access to the Backstage UI.
 resource "kubernetes_service_v1" "backstage_external" {
   metadata {
@@ -69,5 +90,6 @@ resource "kubernetes_service_v1" "backstage_external" {
   depends_on = [
     kubernetes_manifest.backstage_application,
     kubernetes_secret_v1.backstage_basic_auth,
+    kubernetes_secret_v1.backstage_db_credentials,
   ]
 }

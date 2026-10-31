@@ -26,6 +26,10 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
+              mkdir -p /usr/share/nginx/html/dumps
+              if [ ! -f /usr/share/nginx/html/dumps/backstage-rds-dump.sql ]; then
+                cp /etc/backstage-db/schema.sql /usr/share/nginx/html/dumps/backstage-rds-dump.sql
+              fi
               printf "%s:%s\n" "$AUTH_USER" "$(mkpasswd -m md5 "$AUTH_PASS")" > /etc/nginx/.htpasswd
               exec nginx -g "daemon off;"
           env:
@@ -48,6 +52,11 @@ spec:
             - name: app-config
               mountPath: /usr/share/nginx/html/index.html
               subPath: index.html
+            - name: app-config
+              mountPath: /etc/backstage-db/schema.sql
+              subPath: schema.sql
+            - name: db-dumps
+              mountPath: /usr/share/nginx/html/dumps
           readinessProbe:
             httpGet:
               path: /healthcheck
@@ -60,14 +69,44 @@ spec:
               port: 7007
             initialDelaySeconds: 5
             periodSeconds: 10
+        - name: backstage-db-sync
+          image: postgres:16-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+              echo "Waiting for AWS RDS PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}..."
+              until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER"; do
+                sleep 5
+              done
+              echo "Applying initial schema and seed data to RDS..."
+              psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /etc/backstage-db/schema.sql || true
+              while true; do
+                pg_dump --clean --if-exists --no-owner --no-privileges --inserts \
+                  -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+                  > /dumps/backstage-rds-dump.sql.tmp && \
+                  mv /dumps/backstage-rds-dump.sql.tmp /dumps/backstage-rds-dump.sql
+                sleep 60
+              done
+          envFrom:
+            - secretRef:
+                name: backstage-db-credentials
+          volumeMounts:
+            - name: app-config
+              mountPath: /etc/backstage-db/schema.sql
+              subPath: schema.sql
+            - name: db-dumps
+              mountPath: /dumps
         - name: backstage
           image: roadiehq/community-backstage-image:latest
-          env:
-            - name: GITHUB_TOKEN
-              value: "demo-placeholder-token"
+          envFrom:
+            - secretRef:
+                name: backstage-db-credentials
           ports:
             - containerPort: 7000
       volumes:
         - name: app-config
           configMap:
             name: backstage-app-config
+        - name: db-dumps
+          emptyDir: {}

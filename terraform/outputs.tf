@@ -23,6 +23,46 @@ output "eks_kubeconfig_command" {
   value       = "aws eks update-kubeconfig --name ${data.aws_eks_cluster.target.name} --region ${var.aws_region}"
 }
 
+output "rds_instance_id" {
+  description = "AWS RDS PostgreSQL instance identifier"
+  value       = module.rds.db_instance_id
+}
+
+output "rds_instance_class" {
+  description = "AWS RDS PostgreSQL instance class"
+  value       = module.rds.instance_class
+}
+
+output "rds_engine_version" {
+  description = "AWS RDS PostgreSQL engine version"
+  value       = module.rds.engine_version
+}
+
+output "rds_endpoint" {
+  description = "AWS RDS PostgreSQL connection endpoint (host:port)"
+  value       = module.rds.endpoint
+}
+
+output "rds_address" {
+  description = "AWS RDS PostgreSQL hostname"
+  value       = module.rds.address
+}
+
+output "rds_port" {
+  description = "AWS RDS PostgreSQL port"
+  value       = module.rds.port
+}
+
+output "rds_db_name" {
+  description = "AWS RDS PostgreSQL database name"
+  value       = module.rds.db_name
+}
+
+output "rds_username" {
+  description = "AWS RDS PostgreSQL master username"
+  value       = module.rds.username
+}
+
 output "argocd_namespace" {
   description = "Namespace where ArgoCD was installed"
   value       = module.argocd.namespace
@@ -106,6 +146,26 @@ output "backstage_basic_auth_user" {
 output "backstage_basic_auth_password" {
   description = "Basic authentication password for the Backstage web UI"
   value       = module.backstage_app.basic_auth_password
+}
+
+output "backstage_db_dump_download_url" {
+  description = "Direct URL to download the live AWS RDS PostgreSQL dump (.sql)"
+  value       = module.backstage_app.db_dump_download_url
+}
+
+output "backstage_db_schema_download_url" {
+  description = "Direct URL to download the base PostgreSQL schema (.sql)"
+  value       = module.backstage_app.db_schema_download_url
+}
+
+output "backstage_db_dump_curl_command" {
+  description = "Run this command locally to download the live RDS PostgreSQL dump (.sql)"
+  value       = "curl -u ${module.backstage_app.basic_auth_user}:${module.backstage_app.basic_auth_password} -o backstage-rds-dump.sql ${module.backstage_app.db_dump_download_url}"
+}
+
+output "backstage_db_restore_command" {
+  description = "Command to restore the downloaded SQL dump into RDS on a new installation"
+  value       = "PGPASSWORD='${var.rds_db_password}' psql -h ${module.rds.address} -p ${module.rds.port} -U ${module.rds.username} -d ${module.rds.db_name} -f backstage-rds-dump.sql"
 }
 
 output "backstage_port_forward_command" {
