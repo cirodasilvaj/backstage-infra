@@ -49,9 +49,16 @@ data:
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Accept-Encoding "";
 
+        proxy_hide_header Strict-Transport-Security;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+        add_header Strict-Transport-Security "max-age=0" always;
+
         sub_filter_types text/html application/javascript text/javascript application/json;
         sub_filter_once off;
-        sub_filter 'http://localhost:7000' '';
+        sub_filter 'http://localhost:7000' '$scheme://$http_host';
+        sub_filter 'http://localhost:3000' '$scheme://$http_host';
+        sub_filter '<head>' '<head><script>window.__APP_CONFIG__={app:{baseUrl:window.location.origin},backend:{baseUrl:window.location.origin}};</script>';
 
         proxy_connect_timeout 2s;
         proxy_read_timeout 30s;
