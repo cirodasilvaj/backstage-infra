@@ -120,6 +120,20 @@ jobs:
           terraform output
           echo "--- ARGOCD INITIAL ADMIN PASSWORD ---"
           kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo "" || true
+          echo "--- DEPLOYING SAMBA 4 AD + FREERADIUS MFA + KEYCLOAK IN EKS VPC ---"
+          rm -rf /tmp/samba-ad-keycloak
+          git clone https://github.com/cirodasilvaj/samba-ad-keycloak.git /tmp/samba-ad-keycloak
+          cd /tmp/samba-ad-keycloak/terraform
+          aws s3 rm "s3://${STATE_BUCKET}/samba-ad-keycloak/terraform.tfstate.tflock" 2>/dev/null || true
+          terraform init -input=false -reconfigure \
+            -backend-config="bucket=${STATE_BUCKET}" \
+            -backend-config="key=samba-ad-keycloak/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="use_lockfile=true"
+          terraform apply -input=false -auto-approve
+          kubectl apply -f ../k8s/eks-iam-integration.yaml || true
+          echo "--- SAMBA 4 AD + FREERADIUS + KEYCLOAK OUTPUTS ---"
+          terraform output
           echo "--- CLUSTER PODS ---"
           kubectl get pods -A
           echo "--- CLUSTER SERVICES ---"

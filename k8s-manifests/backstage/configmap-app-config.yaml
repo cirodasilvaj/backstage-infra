@@ -46,6 +46,8 @@ data:
           target: /etc/backstage/catalog-entities.yaml
         - type: url
           target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/catalog-info.yaml
+        - type: url
+          target: https://github.com/cirodasilvaj/samba-ad-keycloak/blob/main/catalog-info.yaml
   catalog-entities.yaml: |
     apiVersion: backstage.io/v1alpha1
     kind: Group
