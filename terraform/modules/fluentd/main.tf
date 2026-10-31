@@ -17,11 +17,6 @@ resource "helm_release" "fluentd" {
   # Demo wiring: ship container logs to stdout only (no external log store
   # configured). Swap in a real `output.conf` (Elasticsearch, S3, etc.) via
   # `fileConfigs` once a destination is chosen.
-  set {
-    name  = "variant"
-    value = "fluentd"
-  }
-
   values = [
     yamlencode({
       fileConfigs = {

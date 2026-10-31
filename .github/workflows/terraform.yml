@@ -67,13 +67,7 @@ jobs:
               --public-access-block-configuration \
               BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
           fi
-          # Migrate legacy state path if needed and clear stale lockfiles
-          if ! aws s3 ls "s3://${BUCKET}/backstage-infra/terraform.tfstate" >/dev/null 2>&1 && \
-             aws s3 ls "s3://${BUCKET}/backstate-infra/terraform.tfstate" >/dev/null 2>&1; then
-            aws s3 cp "s3://${BUCKET}/backstate-infra/terraform.tfstate" "s3://${BUCKET}/backstage-infra/terraform.tfstate"
-          fi
           aws s3 rm "s3://${BUCKET}/backstage-infra/terraform.tfstate.tflock" 2>/dev/null || true
-          aws s3 rm "s3://${BUCKET}/backstate-infra/terraform.tfstate.tflock" 2>/dev/null || true
 
       - name: Terraform init
         run: |
@@ -87,7 +81,7 @@ jobs:
         run: terraform fmt -check -recursive
         continue-on-error: true
 
-      - name: Pre-install ArgoCD CRDs and clean failed Helm releases
+      - name: Pre-install ArgoCD CRDs
         run: |
           aws eks update-kubeconfig --name "kube-demo-eks" --region "${AWS_REGION}"
           kubectl apply -k https://github.com/argoproj/argo-cd/manifests/crds\?ref=v2.12.3
@@ -95,10 +89,6 @@ jobs:
             kubectl label crd "$crd" app.kubernetes.io/managed-by=Helm --overwrite || true
             kubectl annotate crd "$crd" meta.helm.sh/release-name=argocd meta.helm.sh/release-namespace=argocd --overwrite || true
           done
-          # Untaint or remove any failed helm release from previous interrupted attempt
-          terraform state rm module.fluentd.helm_release.fluentd 2>/dev/null || true
-          kubectl delete secret -n logging -l owner=helm,name=fluentd 2>/dev/null || true
-          kubectl delete daemonset,configmap,serviceaccount,clusterrole,clusterrolebinding -n logging -l app.kubernetes.io/instance=fluentd 2>/dev/null || true
 
       - name: Terraform validate
         run: terraform validate
@@ -122,6 +112,7 @@ jobs:
         if: github.event_name == 'push' || github.event.inputs.action == 'apply' || github.event.inputs.action == ''
         run: |
           terraform output
+          sleep 20
           echo "--- CLUSTER PODS ---"
           kubectl get pods -A
           echo "--- CLUSTER SERVICES ---"
