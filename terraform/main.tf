@@ -41,7 +41,7 @@ module "backstage_app" {
   db_name      = module.rds.db_name
   db_username  = module.rds.username
   db_password  = var.rds_db_password
-  cluster_name = var.cluster_name
+  cluster_name = var.eks_cluster_name
 
   depends_on = [module.argocd, module.rds]
 }
