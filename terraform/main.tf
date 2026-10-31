@@ -63,3 +63,26 @@ module "fluentd" {
   namespace     = var.fluentd_namespace
   chart_version = var.fluentd_chart_version
 }
+
+# 6. SonarQube QA & Security Scanner (with OWASP Dependency-Check, FindSecBugs & YAML/K8s plugins),
+#    persisted on AWS RDS PostgreSQL and exposed via AWS LoadBalancer.
+module "sonarqube" {
+  source = "./modules/sonarqube"
+
+  argocd_namespace = var.argocd_namespace
+  app_namespace    = var.sonarqube_namespace
+  repo_url         = var.backstage_repo_url
+  repo_path        = "k8s-manifests/sonarqube"
+  target_revision  = var.backstage_target_revision
+
+  admin_user     = var.sonarqube_admin_user
+  admin_password = var.sonarqube_admin_password
+
+  db_host     = module.rds.address
+  db_port     = tostring(module.rds.port)
+  db_username = module.rds.username
+  db_password = var.rds_db_password
+
+  depends_on = [module.argocd, module.rds]
+}
+

@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarqube
+  namespace: sonarqube
+  labels:
+    app: sonarqube
+    backstage.io/kubernetes-id: sonarqube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube
+  template:
+    metadata:
+      labels:
+        app: sonarqube
+        backstage.io/kubernetes-id: sonarqube
+    spec:
+      initContainers:
+        - name: init-db-and-security-plugins
+          image: postgres:16-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+              echo "Ensuring 'sonarqube' database exists on AWS RDS PostgreSQL (${POSTGRES_HOST})..."
+              until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER"; do
+                sleep 3
+              done
+              psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -tc \
+                "SELECT 1 FROM pg_database WHERE datname = 'sonarqube'" | grep -q 1 || \
+                psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE sonarqube;"
+
+              echo "Installing QA & Security plugins (OWASP Dependency-Check, FindSecBugs, YAML/K8s Security)..."
+              mkdir -p /plugins
+              wget -q -O /plugins/sonar-dependency-check-plugin-4.0.1.jar \
+                "https://github.com/dependency-check/dependency-check-sonar-plugin/releases/download/4.0.1/sonar-dependency-check-plugin-4.0.1.jar" || true
+              wget -q -O /plugins/sonar-findbugs-plugin-4.2.10.jar \
+                "https://github.com/spotbugs/sonar-findbugs/releases/download/4.2.10/sonar-findbugs-plugin-4.2.10.jar" || true
+              wget -q -O /plugins/sonar-yaml-plugin-1.9.1.jar \
+                "https://github.com/sbaudoin/sonar-yaml/releases/download/v1.9.1/sonar-yaml-plugin-1.9.1.jar" || true
+              ls -lh /plugins
+          envFrom:
+            - secretRef:
+                name: sonarqube-db-credentials
+          volumeMounts:
+            - name: sonarqube-extensions-plugins
+              mountPath: /plugins
+      containers:
+        - name: sonarqube
+          image: sonarqube:9.9-community
+          ports:
+            - name: http
+              containerPort: 9000
+          env:
+            - name: SONAR_SEARCH_JAVAADDITIONALOPTS
+              value: "-Dnode.store.allow_mmap=false"
+            - name: SONAR_WEB_JAVAOPTS
+              value: "-Xmx512m -Xms128m"
+            - name: SONAR_CE_JAVAOPTS
+              value: "-Xmx512m -Xms128m"
+            - name: SONAR_SEARCH_JAVAOPTS
+              value: "-Xmx512m -Xms512m"
+            - name: SONAR_JDBC_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sonarqube-db-credentials
+                  key: SONAR_JDBC_URL
+            - name: SONAR_JDBC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: sonarqube-db-credentials
+                  key: POSTGRES_USER
+            - name: SONAR_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sonarqube-db-credentials
+                  key: POSTGRES_PASSWORD
+            - name: SONAR_FORCEAUTHENTICATION
+              value: "false"
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    (
+                      for i in $(seq 1 90); do
+                        if wget -qO- http://127.0.0.1:9000/api/system/status 2>/dev/null | grep -q '"status":"UP"'; then
+                          wget -qO- --post-data="login=admin&previousPassword=admin&password=${SONAR_ADMIN_PASSWORD:-Sonar@2026}" \
+                            --header="Content-Type: application/x-www-form-urlencoded" \
+                            --user="admin:admin" \
+                            "http://127.0.0.1:9000/api/users/change_password" 2>/dev/null || true
+                          break
+                        fi
+                        sleep 5
+                      done
+                    ) &
+          envFrom:
+            - secretRef:
+                name: sonarqube-admin-credentials
+                optional: true
+          volumeMounts:
+            - name: sonarqube-extensions-plugins
+              mountPath: /opt/sonarqube/extensions/plugins
+            - name: sonarqube-data
+              mountPath: /opt/sonarqube/data
+            - name: sonarqube-logs
+              mountPath: /opt/sonarqube/logs
+          readinessProbe:
+            httpGet:
+              path: /api/system/status
+              port: 9000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 18
+          livenessProbe:
+            httpGet:
+              path: /api/system/status
+              port: 9000
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 1536Mi
+            limits:
+              cpu: 1000m
+              memory: 2560Mi
+      volumes:
+        - name: sonarqube-extensions-plugins
+          emptyDir: {}
+        - name: sonarqube-data
+          emptyDir: {}
+        - name: sonarqube-logs
+          emptyDir: {}

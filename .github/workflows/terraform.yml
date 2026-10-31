@@ -92,6 +92,7 @@ jobs:
             kubectl annotate crd "$crd" meta.helm.sh/release-name=argocd meta.helm.sh/release-namespace=argocd --overwrite || true
           done
           kubectl create namespace backstage --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace sonarqube --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Terraform validate
         run: terraform validate
@@ -115,6 +116,7 @@ jobs:
         if: github.event_name == 'push' || github.event.inputs.action == 'apply' || github.event.inputs.action == ''
         run: |
           kubectl apply -f ../k8s-manifests/backstage/
+          kubectl apply -f ../k8s-manifests/sonarqube/
           kubectl rollout restart deployment/backstage -n backstage
           kubectl rollout status deployment/backstage -n backstage --timeout=180s || true
           terraform output

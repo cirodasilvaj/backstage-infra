@@ -264,3 +264,44 @@ output "fluentd_chart_version" {
   description = "Installed Fluentd Helm chart version"
   value       = module.fluentd.chart_version
 }
+
+output "sonarqube_namespace" {
+  description = "Namespace where SonarQube is deployed"
+  value       = module.sonarqube.namespace
+}
+
+output "sonarqube_service_url" {
+  description = "Internal cluster URL for SonarQube"
+  value       = module.sonarqube.service_url
+}
+
+output "sonarqube_external_lb_hostname" {
+  description = "AWS LoadBalancer DNS hostname for external access to SonarQube"
+  value       = module.sonarqube.external_lb_hostname
+}
+
+output "sonarqube_external_url" {
+  description = "Public HTTP URL (port 80) to access the SonarQube QA & Security UI"
+  value       = module.sonarqube.external_url
+}
+
+output "sonarqube_external_url_9000" {
+  description = "Public HTTP URL (port 9000) to access the SonarQube QA & Security UI"
+  value       = module.sonarqube.external_url_9000
+}
+
+output "sonarqube_admin_user" {
+  description = "Admin username for the SonarQube Web UI"
+  value       = module.sonarqube.admin_user
+}
+
+output "sonarqube_admin_password" {
+  description = "Admin password configured for the SonarQube Web UI (initial default before UP is 'admin')"
+  value       = module.sonarqube.admin_password
+}
+
+output "sonarqube_security_plugins_installed" {
+  description = "QA & Security plugins automatically installed in SonarQube"
+  value       = module.sonarqube.security_plugins_installed
+}
+

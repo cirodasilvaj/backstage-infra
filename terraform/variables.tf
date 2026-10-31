@@ -117,3 +117,22 @@ variable "fluentd_chart_version" {
   type        = string
   default     = "0.5.3"
 }
+
+variable "sonarqube_namespace" {
+  description = "Namespace where SonarQube is deployed"
+  type        = string
+  default     = "sonarqube"
+}
+
+variable "sonarqube_admin_user" {
+  description = "Admin username for SonarQube QA & Security UI"
+  type        = string
+  default     = "admin"
+}
+
+variable "sonarqube_admin_password" {
+  description = "Admin password configured for SonarQube QA & Security UI"
+  type        = string
+  default     = "Sonar@2026"
+}
+

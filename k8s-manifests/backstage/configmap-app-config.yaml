@@ -146,6 +146,22 @@ data:
       system: kube-demo-2026
       dependsOn:
         - resource:default/kube-demo-eks
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Component
+    metadata:
+      name: sonarqube
+      description: SonarQube QA & Security Scanner on EKS (OWASP Dependency-Check, FindSecBugs & YAML/K8s Security plugins)
+      annotations:
+        backstage.io/kubernetes-id: sonarqube
+        backstage.io/kubernetes-namespace: sonarqube
+    spec:
+      type: service
+      lifecycle: production
+      owner: platform-team
+      system: kube-demo-2026
+      dependsOn:
+        - resource:default/kube-demo-eks
   schema.sql: |
     --
     -- Backstage Developer Portal - PostgreSQL Schema & Initial Seed Dump
