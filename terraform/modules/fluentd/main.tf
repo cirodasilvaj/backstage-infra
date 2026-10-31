@@ -5,11 +5,14 @@ resource "kubernetes_namespace" "logging" {
 }
 
 resource "helm_release" "fluentd" {
-  name       = "fluentd"
-  repository = "https://fluent.github.io/helm-charts"
-  chart      = "fluentd"
-  version    = var.chart_version
-  namespace  = kubernetes_namespace.logging.metadata[0].name
+  name            = "fluentd"
+  repository      = "https://fluent.github.io/helm-charts"
+  chart           = "fluentd"
+  version         = var.chart_version
+  namespace       = kubernetes_namespace.logging.metadata[0].name
+  wait            = false
+  cleanup_on_fail = true
+  force_update    = true
 
   # Demo wiring: ship container logs to stdout only (no external log store
   # configured). Swap in a real `output.conf` (Elasticsearch, S3, etc.) via
@@ -18,4 +21,16 @@ resource "helm_release" "fluentd" {
     name  = "variant"
     value = "fluentd"
   }
+
+  values = [
+    yamlencode({
+      fileConfigs = {
+        "04_outputs.conf" = <<-EOT
+          <match **>
+            @type stdout
+          </match>
+        EOT
+      }
+    })
+  ]
 }

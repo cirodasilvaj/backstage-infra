@@ -5,11 +5,14 @@ resource "kubernetes_namespace" "grafana" {
 }
 
 resource "helm_release" "grafana" {
-  name       = "grafana"
-  repository = "https://grafana.github.io/helm-charts"
-  chart      = "grafana"
-  version    = var.chart_version
-  namespace  = kubernetes_namespace.grafana.metadata[0].name
+  name            = "grafana"
+  repository      = "https://grafana.github.io/helm-charts"
+  chart           = "grafana"
+  version         = var.chart_version
+  namespace       = kubernetes_namespace.grafana.metadata[0].name
+  wait            = false
+  cleanup_on_fail = true
+  force_update    = true
 
   set {
     name  = "service.type"

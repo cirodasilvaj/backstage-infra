@@ -1,6 +1,51 @@
+output "eks_cluster_name" {
+  description = "Target EKS cluster name"
+  value       = data.aws_eks_cluster.target.name
+}
+
+output "eks_cluster_arn" {
+  description = "Target EKS cluster ARN"
+  value       = data.aws_eks_cluster.target.arn
+}
+
+output "eks_cluster_endpoint" {
+  description = "Target EKS cluster API server endpoint"
+  value       = data.aws_eks_cluster.target.endpoint
+}
+
+output "eks_cluster_ca_data" {
+  description = "Base64-encoded CA certificate for the target EKS cluster"
+  value       = nonsensitive(data.aws_eks_cluster.target.certificate_authority[0].data)
+}
+
+output "eks_kubeconfig_command" {
+  description = "Command to configure local kubectl for the EKS cluster"
+  value       = "aws eks update-kubeconfig --name ${data.aws_eks_cluster.target.name} --region ${var.aws_region}"
+}
+
 output "argocd_namespace" {
   description = "Namespace where ArgoCD was installed"
   value       = module.argocd.namespace
+}
+
+output "argocd_release_name" {
+  description = "Helm release name for ArgoCD"
+  value       = module.argocd.release_name
+}
+
+output "argocd_release_status" {
+  description = "Helm release status for ArgoCD"
+  value       = module.argocd.release_status
+}
+
+output "argocd_chart_version" {
+  description = "Installed ArgoCD Helm chart version"
+  value       = module.argocd.chart_version
+}
+
+output "argocd_service_url" {
+  description = "Internal cluster URL for ArgoCD server"
+  value       = module.argocd.service_url
 }
 
 output "argocd_get_admin_password_command" {
@@ -13,9 +58,64 @@ output "argocd_port_forward_command" {
   value       = "kubectl -n ${var.argocd_namespace} port-forward svc/argocd-server 8080:443"
 }
 
+output "backstage_application_name" {
+  description = "ArgoCD Application name for Backstage"
+  value       = module.backstage_app.application_name
+}
+
+output "backstage_namespace" {
+  description = "Namespace where Backstage is deployed by ArgoCD"
+  value       = module.backstage_app.app_namespace
+}
+
+output "backstage_repo_url" {
+  description = "Git repository URL watched by ArgoCD for Backstage manifests"
+  value       = module.backstage_app.repo_url
+}
+
+output "backstage_repo_path" {
+  description = "Repository path watched by ArgoCD for Backstage manifests"
+  value       = module.backstage_app.repo_path
+}
+
+output "backstage_service_url" {
+  description = "Internal cluster URL for Backstage"
+  value       = module.backstage_app.service_url
+}
+
 output "backstage_port_forward_command" {
   description = "Run this to reach the Backstage UI at http://localhost:7007 once ArgoCD has synced it"
   value       = "kubectl -n ${var.backstage_namespace} port-forward svc/backstage 7007:7007"
+}
+
+output "grafana_namespace" {
+  description = "Namespace where Grafana was installed"
+  value       = module.grafana.namespace
+}
+
+output "grafana_release_name" {
+  description = "Helm release name for Grafana"
+  value       = module.grafana.release_name
+}
+
+output "grafana_release_status" {
+  description = "Helm release status for Grafana"
+  value       = module.grafana.release_status
+}
+
+output "grafana_chart_version" {
+  description = "Installed Grafana Helm chart version"
+  value       = module.grafana.chart_version
+}
+
+output "grafana_service_url" {
+  description = "Internal cluster URL for Grafana"
+  value       = module.grafana.service_url
+}
+
+output "grafana_prometheus_datasource_url" {
+  description = "Prometheus datasource URL configured in Grafana"
+  value       = module.grafana.prometheus_datasource_url
 }
 
 output "grafana_admin_password_command" {
@@ -31,4 +131,19 @@ output "grafana_port_forward_command" {
 output "fluentd_namespace" {
   description = "Namespace where Fluentd was installed"
   value       = module.fluentd.namespace
+}
+
+output "fluentd_release_name" {
+  description = "Helm release name for Fluentd"
+  value       = module.fluentd.release_name
+}
+
+output "fluentd_release_status" {
+  description = "Helm release status for Fluentd"
+  value       = module.fluentd.release_status
+}
+
+output "fluentd_chart_version" {
+  description = "Installed Fluentd Helm chart version"
+  value       = module.fluentd.chart_version
 }
