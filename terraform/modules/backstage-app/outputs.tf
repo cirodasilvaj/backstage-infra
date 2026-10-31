@@ -67,3 +67,19 @@ output "db_schema_download_url" {
   description = "Direct web URL to download the base PostgreSQL schema (.sql)"
   value       = try("http://${kubernetes_service_v1.backstage_external.status[0].load_balancer[0].ingress[0].hostname}/backstage-schema.sql", "")
 }
+
+output "k8s_cluster_status_url" {
+  description = "Direct web URL to inspect the live Kubernetes cluster integration status JSON"
+  value       = try("http://${kubernetes_service_v1.backstage_external.status[0].load_balancer[0].ingress[0].hostname}/k8s-cluster-status.json", "")
+}
+
+output "k8s_service_account" {
+  description = "Kubernetes ServiceAccount used by Backstage to query the EKS cluster"
+  value       = "backstage"
+}
+
+output "k8s_cluster_role" {
+  description = "Kubernetes ClusterRole granting Backstage read access to cluster resources"
+  value       = "backstage-kubernetes-reader"
+}
+

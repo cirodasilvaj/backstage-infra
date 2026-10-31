@@ -10,6 +10,7 @@ metadata:
   namespace: backstage
   labels:
     app: backstage
+    backstage.io/kubernetes-id: backstage
 spec:
   replicas: 1
   selector:
@@ -19,7 +20,10 @@ spec:
     metadata:
       labels:
         app: backstage
+        backstage.io/kubernetes-id: backstage
     spec:
+      serviceAccountName: backstage
+      automountServiceAccountToken: true
       containers:
         - name: backstage-auth-proxy
           image: nginx:1.27-alpine
@@ -29,6 +33,9 @@ spec:
               mkdir -p /usr/share/nginx/html/dumps
               if [ ! -f /usr/share/nginx/html/dumps/backstage-rds-dump.sql ]; then
                 cp /etc/backstage-db/schema.sql /usr/share/nginx/html/dumps/backstage-rds-dump.sql
+              fi
+              if [ ! -f /usr/share/nginx/html/dumps/k8s-cluster-status.json ]; then
+                printf '{"cluster":"kube-demo-eks","status":"initializing"}\n' > /usr/share/nginx/html/dumps/k8s-cluster-status.json
               fi
               printf "%s:%s\n" "$AUTH_USER" "$(mkpasswd -m md5 "$AUTH_PASS")" > /etc/nginx/.htpasswd
               exec nginx -g "daemon off;"
@@ -79,18 +86,50 @@ spec:
               until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER"; do
                 sleep 5
               done
-              echo "Applying initial schema and seed data to RDS..."
+              echo "Applying initial schema and Kubernetes cluster seed data to RDS..."
               psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /etc/backstage-db/schema.sql || true
+
+              SA_TOKEN_PATH="/var/run/secrets/kubernetes.io/serviceaccount/token"
+              K8S_API="https://kubernetes.default.svc"
+
               while true; do
+                if [ -f "$SA_TOKEN_PATH" ]; then
+                  TOKEN=$(cat "$SA_TOKEN_PATH")
+                  K8S_VERSION=$(wget -qO- --no-check-certificate --header="Authorization: Bearer $TOKEN" "$K8S_API/version" 2>/dev/null || echo '{"gitVersion":"unknown"}')
+                  NODES_JSON=$(wget -qO- --no-check-certificate --header="Authorization: Bearer $TOKEN" "$K8S_API/api/v1/nodes" 2>/dev/null | tr -d '\n' | sed 's/.*"items":\[\(.*\)\].*/[\1]/' || echo '[]')
+                  NAMESPACES_COUNT=$(wget -qO- --no-check-certificate --header="Authorization: Bearer $TOKEN" "$K8S_API/api/v1/namespaces" 2>/dev/null | grep -o '"kind":"Namespace"' | wc -l || echo 0)
+                  PODS_COUNT=$(wget -qO- --no-check-certificate --header="Authorization: Bearer $TOKEN" "$K8S_API/api/v1/pods" 2>/dev/null | grep -o '"phase":"Running"' | wc -l || echo 0)
+                  DEPLOYMENTS_COUNT=$(wget -qO- --no-check-certificate --header="Authorization: Bearer $TOKEN" "$K8S_API/apis/apps/v1/deployments" 2>/dev/null | grep -o '"replicas":' | wc -l || echo 0)
+                  cat <<EOF > /dumps/k8s-cluster-status.json.tmp
+              {
+                "cluster_name": "${K8S_CLUSTER_NAME:-kube-demo-eks}",
+                "api_server": "${K8S_API}",
+                "auth_provider": "serviceAccount",
+                "service_account": "backstage",
+                "namespace": "backstage",
+                "connected": true,
+                "running_pods_count": ${PODS_COUNT},
+                "deployments_count": ${DEPLOYMENTS_COUNT},
+                "namespaces_count": ${NAMESPACES_COUNT},
+                "kubernetes_version": ${K8S_VERSION},
+                "updated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              }
+              EOF
+                  mv /dumps/k8s-cluster-status.json.tmp /dumps/k8s-cluster-status.json
+                fi
+
                 pg_dump --clean --if-exists --no-owner --no-privileges --inserts \
                   -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
                   > /dumps/backstage-rds-dump.sql.tmp && \
                   mv /dumps/backstage-rds-dump.sql.tmp /dumps/backstage-rds-dump.sql
-                sleep 60
+                sleep 30
               done
           envFrom:
             - secretRef:
                 name: backstage-db-credentials
+            - secretRef:
+                name: backstage-k8s-config
+                optional: true
           volumeMounts:
             - name: app-config
               mountPath: /etc/backstage-db/schema.sql
@@ -102,6 +141,16 @@ spec:
           envFrom:
             - secretRef:
                 name: backstage-db-credentials
+            - secretRef:
+                name: backstage-k8s-config
+                optional: true
+          volumeMounts:
+            - name: app-config
+              mountPath: /etc/backstage/catalog-entities.yaml
+              subPath: catalog-entities.yaml
+            - name: app-config
+              mountPath: /etc/backstage/app-config.k8s.yaml
+              subPath: app-config.yaml
           ports:
             - containerPort: 7000
       volumes:

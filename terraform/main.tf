@@ -36,11 +36,12 @@ module "backstage_app" {
   auth_user        = var.backstage_auth_user
   auth_password    = var.backstage_auth_password
 
-  db_host     = module.rds.address
-  db_port     = tostring(module.rds.port)
-  db_name     = module.rds.db_name
-  db_username = module.rds.username
-  db_password = var.rds_db_password
+  db_host      = module.rds.address
+  db_port      = tostring(module.rds.port)
+  db_name      = module.rds.db_name
+  db_username  = module.rds.username
+  db_password  = var.rds_db_password
+  cluster_name = var.cluster_name
 
   depends_on = [module.argocd, module.rds]
 }

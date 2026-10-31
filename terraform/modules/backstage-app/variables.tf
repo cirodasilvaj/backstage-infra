@@ -60,3 +60,10 @@ variable "db_password" {
   description = "RDS PostgreSQL password"
   type        = string
 }
+
+variable "cluster_name" {
+  description = "Name of the EKS Kubernetes cluster connected to Backstage"
+  type        = string
+  default     = "kube-demo-eks"
+}
+

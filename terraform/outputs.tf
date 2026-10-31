@@ -168,6 +168,22 @@ output "backstage_db_restore_command" {
   value       = "PGPASSWORD='${var.rds_db_password}' psql -h ${module.rds.address} -p ${module.rds.port} -U ${module.rds.username} -d ${module.rds.db_name} -f backstage-rds-dump.sql"
 }
 
+output "backstage_k8s_cluster_status_url" {
+  description = "Direct URL to inspect Backstage's live Kubernetes cluster connection status JSON"
+  value       = module.backstage_app.k8s_cluster_status_url
+}
+
+output "backstage_k8s_service_account" {
+  description = "Kubernetes ServiceAccount used by Backstage to connect to the EKS cluster"
+  value       = module.backstage_app.k8s_service_account
+}
+
+output "backstage_k8s_cluster_role" {
+  description = "Kubernetes ClusterRole granting Backstage read access to EKS cluster workloads"
+  value       = module.backstage_app.k8s_cluster_role
+}
+
+
 output "backstage_port_forward_command" {
   description = "Run this to reach the Backstage UI at http://localhost:7007 once ArgoCD has synced it"
   value       = "kubectl -n ${var.backstage_namespace} port-forward svc/backstage 7007:7007"

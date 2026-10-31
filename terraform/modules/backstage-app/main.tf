@@ -50,6 +50,43 @@ resource "kubernetes_secret_v1" "backstage_db_credentials" {
   type = "Opaque"
 }
 
+# Kubernetes cluster integration configuration secret for Backstage (@backstage/plugin-kubernetes-backend).
+resource "kubernetes_secret_v1" "backstage_k8s_config" {
+  metadata {
+    name      = "backstage-k8s-config"
+    namespace = var.app_namespace
+    labels = {
+      app = "backstage"
+    }
+  }
+
+  data = {
+    K8S_CLUSTER_NAME = var.cluster_name
+    K8S_CLUSTER_URL  = "https://kubernetes.default.svc"
+    APP_CONFIG_kubernetes = jsonencode({
+      serviceLocatorMethod = {
+        type = "multiTenant"
+      }
+      clusterLocatorMethods = [
+        {
+          type = "config"
+          clusters = [
+            {
+              name              = var.cluster_name
+              url               = "https://kubernetes.default.svc"
+              authProvider      = "serviceAccount"
+              skipTLSVerify     = true
+              skipMetricsLookup = false
+            }
+          ]
+        }
+      ]
+    })
+  }
+
+  type = "Opaque"
+}
+
 # External LoadBalancer service for demo access to the Backstage UI.
 resource "kubernetes_service_v1" "backstage_external" {
   metadata {
@@ -91,5 +128,6 @@ resource "kubernetes_service_v1" "backstage_external" {
     kubernetes_manifest.backstage_application,
     kubernetes_secret_v1.backstage_basic_auth,
     kubernetes_secret_v1.backstage_db_credentials,
+    kubernetes_secret_v1.backstage_k8s_config,
   ]
 }
