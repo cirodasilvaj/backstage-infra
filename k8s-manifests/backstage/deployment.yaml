@@ -23,6 +23,22 @@ spec:
       containers:
         - name: backstage-auth-proxy
           image: nginx:1.27-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              printf "%s:%s\n" "$AUTH_USER" "$(mkpasswd -m md5 "$AUTH_PASS")" > /etc/nginx/.htpasswd
+              exec nginx -g "daemon off;"
+          env:
+            - name: AUTH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-basic-auth
+                  key: username
+            - name: AUTH_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-basic-auth
+                  key: password
           ports:
             - containerPort: 7007
           volumeMounts:
@@ -32,9 +48,6 @@ spec:
             - name: app-config
               mountPath: /usr/share/nginx/html/index.html
               subPath: index.html
-            - name: basic-auth
-              mountPath: /etc/nginx/auth
-              readOnly: true
           readinessProbe:
             httpGet:
               path: /healthcheck
@@ -58,6 +71,3 @@ spec:
         - name: app-config
           configMap:
             name: backstage-app-config
-        - name: basic-auth
-          secret:
-            secretName: backstage-basic-auth

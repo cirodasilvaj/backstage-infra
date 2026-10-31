@@ -11,7 +11,7 @@ resource "kubernetes_manifest" "backstage_application" {
   }))
 }
 
-# Basic authentication secret (.htpasswd) for the Backstage web UI proxy.
+# Basic authentication credentials secret for the Backstage web UI proxy.
 resource "kubernetes_secret_v1" "backstage_basic_auth" {
   metadata {
     name      = "backstage-basic-auth"
@@ -22,7 +22,8 @@ resource "kubernetes_secret_v1" "backstage_basic_auth" {
   }
 
   data = {
-    ".htpasswd" = "${var.auth_user}:{SHA}${base64sha1(var.auth_password)}\n"
+    username = var.auth_user
+    password = var.auth_password
   }
 
   type = "Opaque"
