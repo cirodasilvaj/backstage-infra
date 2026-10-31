@@ -88,6 +88,22 @@ output "argocd_service_url" {
   value       = module.argocd.service_url
 }
 
+output "argocd_external_lb_hostname" {
+  description = "AWS LoadBalancer DNS hostname for external access to ArgoCD"
+  value       = module.argocd.external_lb_hostname
+}
+
+output "argocd_external_url" {
+  description = "Public HTTP URL (port 80) to access the ArgoCD Web UI in a browser"
+  value       = module.argocd.external_url
+}
+
+output "argocd_external_url_8080" {
+  description = "Public HTTP URL (port 8080) to access the ArgoCD Web UI in a browser"
+  value       = module.argocd.external_url_8080
+}
+
+
 output "argocd_get_admin_password_command" {
   description = "Run this after apply to retrieve the ArgoCD initial admin password"
   value       = "kubectl -n ${var.argocd_namespace} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"

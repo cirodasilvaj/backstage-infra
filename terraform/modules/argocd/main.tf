@@ -31,3 +31,44 @@ resource "helm_release" "argocd" {
     value = "true"
   }
 }
+
+# External LoadBalancer service for demo access to the ArgoCD Web UI.
+resource "kubernetes_service_v1" "argocd_external" {
+  metadata {
+    name      = "argocd-external"
+    namespace = kubernetes_namespace.argocd.metadata[0].name
+    labels = {
+      "app.kubernetes.io/name" = "argocd-server"
+    }
+    annotations = {
+      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+    }
+  }
+
+  spec {
+    type = "LoadBalancer"
+
+    selector = {
+      "app.kubernetes.io/name" = "argocd-server"
+    }
+
+    port {
+      name        = "http"
+      port        = 80
+      target_port = 8080
+      protocol    = "TCP"
+    }
+
+    port {
+      name        = "argocd-8080"
+      port        = 8080
+      target_port = 8080
+      protocol    = "TCP"
+    }
+  }
+
+  wait_for_load_balancer = true
+
+  depends_on = [helm_release.argocd]
+}
+

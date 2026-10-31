@@ -367,6 +367,26 @@ data:
         add_header Cache-Control "no-store, no-cache, must-revalidate" always;
       }
 
+      location /static/ {
+        auth_basic "Backstage Developer Portal";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+
+        proxy_pass http://127.0.0.1:7000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header Accept-Encoding "";
+
+        proxy_hide_header Strict-Transport-Security;
+        proxy_hide_header Content-Security-Policy;
+        add_header Strict-Transport-Security "max-age=0" always;
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+
+        sub_filter_types application/javascript text/javascript application/json;
+        sub_filter_once off;
+        sub_filter 'http://localhost:7000' '$scheme://$http_host';
+        sub_filter 'http://localhost:3000' '$scheme://$http_host';
+      }
+
       location / {
         auth_basic "Backstage Developer Portal";
         auth_basic_user_file /etc/nginx/.htpasswd;
@@ -383,8 +403,8 @@ data:
         proxy_hide_header Content-Security-Policy;
         proxy_hide_header X-Frame-Options;
         add_header Strict-Transport-Security "max-age=0" always;
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
 
-        sub_filter_types text/html application/javascript text/javascript application/json;
         sub_filter_once off;
         sub_filter 'http://localhost:7000' '$scheme://$http_host';
         sub_filter 'http://localhost:3000' '$scheme://$http_host';

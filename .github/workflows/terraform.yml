@@ -118,6 +118,8 @@ jobs:
           kubectl rollout restart deployment/backstage -n backstage
           kubectl rollout status deployment/backstage -n backstage --timeout=180s || true
           terraform output
+          echo "--- ARGOCD INITIAL ADMIN PASSWORD ---"
+          kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo "" || true
           echo "--- CLUSTER PODS ---"
           kubectl get pods -A
           echo "--- CLUSTER SERVICES ---"
