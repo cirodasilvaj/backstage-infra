@@ -2,7 +2,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: python-demo-app
-  description: Aplicação Python 3.12 com pipeline CI/CD e QA/Segurança via SonarQube
+  description: Python 3.12 application with CI/CD pipeline and QA/Security gate via SonarQube
   annotations:
     backstage.io/kubernetes-id: python-demo-app
     sonarqube.org/project-key: python-demo-app

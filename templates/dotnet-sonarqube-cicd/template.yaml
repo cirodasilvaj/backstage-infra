@@ -2,11 +2,11 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: dotnet-sonarqube-cicd-template
-  title: .NET 8 C# Web App + CI/CD com QA & SonarQube Security Gate
+  title: .NET 8 C# Web App + CI/CD with QA & SonarQube Security Gate
   description: >-
-    Skeleton completo de aplicação .NET 8 C# Minimal API com testes automatizados (dotnet test + Cobertura),
-    análise estática de qualidade e segurança no SonarQube (dotnet-sonarscanner + Roslyn Security + OWASP),
-    build de container para GHCR e manifesto GitOps para deploy via ArgoCD no EKS.
+    Complete .NET 8 C# Minimal API application skeleton with automated QA tests (dotnet test + Cobertura),
+    SonarQube static quality and security analysis (dotnet-sonarscanner + Roslyn Security + OWASP),
+    GHCR container build, and GitOps manifest for ArgoCD deployment on EKS.
   tags:
     - dotnet
     - csharp
@@ -19,28 +19,28 @@ spec:
   owner: group:default/platform-team
   type: service
   parameters:
-    - title: Identificação do Serviço
+    - title: Service Identification
       required:
         - component_id
         - description
       properties:
         component_id:
-          title: Nome da Aplicação
+          title: Application Name
           type: string
-          description: Identificador único do microsserviço (ex. pedidos-dotnet-api)
+          description: Unique microservice identifier (e.g., orders-dotnet-api)
           default: dotnet-csharp-app-demo
         description:
-          title: Descrição
+          title: Description
           type: string
-          description: Breve descrição do serviço
-          default: Aplicação .NET 8 C# com pipeline CI/CD integrado ao SonarQube QA & Security
+          description: Brief description of the service
+          default: .NET 8 C# application with CI/CD pipeline integrated with SonarQube QA & Security
         sonar_host_url:
-          title: URL do SonarQube no Cluster EKS
+          title: SonarQube URL in EKS Cluster
           type: string
           default: http://sonarqube.sonarqube.svc.cluster.local:9000
   steps:
     - id: fetch-base
-      name: Gerar Skeleton .NET 8 C# com Pipeline CI/CD + SonarQube QA
+      name: Generate .NET 8 C# Skeleton with CI/CD Pipeline + SonarQube QA
       action: fetch:template
       input:
         url: ./skeleton
@@ -50,7 +50,7 @@ spec:
           sonar_host_url: ${{ parameters.sonar_host_url }}
 
     - id: publish
-      name: Publicar Repositório no GitHub
+      name: Publish Repository to GitHub
       action: publish:github
       input:
         allowedHosts: ['github.com']
@@ -59,7 +59,7 @@ spec:
         defaultBranch: main
 
     - id: register
-      name: Registrar Componente no Catálogo do Backstage
+      name: Register Component in Backstage Catalog
       action: catalog:register
       input:
         repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
@@ -67,8 +67,8 @@ spec:
 
   output:
     links:
-      - title: Repositório no GitHub
+      - title: GitHub Repository
         url: ${{ steps['publish'].output.remoteUrl }}
-      - title: Abrir no Catálogo do Backstage
+      - title: Open in Backstage Catalog
         icon: catalog
         entityRef: ${{ steps['register'].output.entityRef }}

@@ -1,46 +1,46 @@
-# Guia de Ordenação de Deploys do Zero (Nova Conta AWS 7 Horas)
+# Zero-to-Production Deployment Order Runbook (New 7-Hour AWS Account)
 
-Este documento descreve a **ordem exata de execução** para recriar toda a arquitetura do zero quando a conta de demonstração da AWS expirar, garantindo que todas as dependências de rede (VPC/Sub-redes), cluster EKS, banco RDS PostgreSQL, identidade (Samba 4 AD + FreeRADIUS MFA + Keycloak), qualidade/segurança (SonarQube), observabilidade (Prometheus + Grafana) e aplicações subam sem conflitos.
+This document describes the **exact execution order** required to recreate the entire architecture from scratch when the 7-hour AWS sandbox account expires. Following this sequence guarantees that all network dependencies (VPC/Subnets), the EKS cluster, the RDS PostgreSQL database, the identity stack (Samba 4 AD + FreeRADIUS MFA + Keycloak), code quality/security (SonarQube), observability (Prometheus + Grafana), and sample applications come up cleanly without conflicts.
 
 ---
 
-## Visão Geral da Ordem de Provisionamento
+## Provisioning Order Overview
 
 ```mermaid
 flowchart TD
-    S0["Fase 0: Preparação (Backup Dump SQL + Atualizar AWS Secrets no GitHub)"] --> S1
-    S1["Fase 1: Infraestrutura Base e Cluster EKS (cirobessa/kube-demo-2026)"] --> S2
-    S2["Fase 2: Kubeconfig Local (aws eks update-kubeconfig)"] --> S3
-    S3["Fase 3: Plataforma DevEx, Banco RDS, SonarQube, Grafana e ArgoCD (cirodasilvaj/backstage-infra)"] --> S4
-    S4["Fase 4: IAM / Active Directory Samba 4 + FreeRADIUS MFA + Keycloak na VPC do EKS (cirodasilvaj/samba-ad-keycloak)"] --> S5
-    S5["Fase 5: Apps Demo Python & .NET C# + Pipeline QA/SonarQube (cirodasilvaj/apps-demo-2026)"]
+    S0["Phase 0: Preparation (Optional SQL Dump Backup + Update AWS Secrets in GitHub)"] --> S1
+    S1["Phase 1: Base Infrastructure, EKS Cluster & Prometheus (cirobessa/kube-demo-2026)"] --> S2
+    S2["Phase 2: Local Kubeconfig Setup (aws eks update-kubeconfig)"] --> S3
+    S3["Phase 3: DevEx Platform, RDS, ArgoCD, Backstage, SonarQube & Grafana (cirodasilvaj/backstage-infra)"] --> S4
+    S4["Phase 4: IAM / Active Directory Samba 4 + FreeRADIUS MFA + Keycloak in EKS VPC (cirodasilvaj/samba-ad-keycloak)"] --> S5
+    S5["Phase 5: Demo Web Apps (Python & .NET C#) + QA & SonarQube CI/CD Pipeline (cirodasilvaj/apps-demo-2026)"]
 ```
 
 ---
 
-## Fase 0 — Antes da Conta Antiga Expirar (Opcional) e Atualização de Credenciais AWS
+## Phase 0 — Before the Old Account Expires (Optional) & Updating AWS Credentials
 
-1. **(Se a conta anterior ainda estiver ativa)** Baixar o dump SQL atualizado do RDS PostgreSQL pelo endpoint do Backstage:
+1. **(Optional — If the previous AWS account is still active)** Download the latest live PostgreSQL SQL dump from the Backstage endpoint:
    ```bash
    curl -u admin:Backstage@2026 \
      -o /home/ciro/backstate-infra/db/schema.sql \
      http://<BACKSTAGE_ELB_HOSTNAME>/backstage-rds-dump.sql
    ```
-   > Caso não baixe um novo dump, o arquivo versionado `db/schema.sql` e o `ConfigMap` `backstage-app-config` já contêm o schema completo e todas as entidades pré-cadastradas (incluindo a conexão com o cluster `kube-demo-eks`).
+   > Even if you do not download a new dump, the version-controlled `db/schema.sql` file and the `backstage-app-config` `ConfigMap` already include the complete schema and pre-seeded entities (including the `kube-demo-eks` cluster connection).
 
-2. **Atualizar as credenciais da nova conta AWS** (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION=us-east-1`) localmente e nos Secrets dos repositórios GitHub:
+2. **Update the new AWS account credentials** (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION=us-east-1`) locally and in the GitHub Actions Secrets of the repositories:
    ```bash
-   export AWS_ACCESS_KEY_ID="SEU_NOVO_ACCESS_KEY"
-   export AWS_SECRET_ACCESS_KEY="SEU_NOVO_SECRET_KEY"
+   export AWS_ACCESS_KEY_ID="YOUR_NEW_ACCESS_KEY_ID"
+   export AWS_SECRET_ACCESS_KEY="YOUR_NEW_SECRET_ACCESS_KEY"
    export AWS_REGION="us-east-1"
 
-   # 1. Atualizar no repositório do Cluster EKS (conta cirobessa)
+   # 1. Update secrets in the EKS Cluster repository (cirobessa account)
    gh auth switch -u cirobessa
    gh secret set AWS_ACCESS_KEY_ID -b "$AWS_ACCESS_KEY_ID" -R cirobessa/kube-demo-2026
    gh secret set AWS_SECRET_ACCESS_KEY -b "$AWS_SECRET_ACCESS_KEY" -R cirobessa/kube-demo-2026
    gh secret set AWS_REGION -b "$AWS_REGION" -R cirobessa/kube-demo-2026
 
-   # 2. Atualizar nos repositórios da Plataforma e IAM (conta cirodasilvaj)
+   # 2. Update secrets in the Platform and IAM repositories (cirodasilvaj account)
    gh auth switch -u cirodasilvaj
    for repo in cirodasilvaj/backstage-infra cirodasilvaj/samba-ad-keycloak; do
      gh secret set AWS_ACCESS_KEY_ID -b "$AWS_ACCESS_KEY_ID" -R "$repo"
@@ -51,25 +51,25 @@ flowchart TD
 
 ---
 
-## Fase 1 — Infraestrutura Base: VPC, Sub-redes, Cluster EKS e Prometheus (`cirobessa/kube-demo-2026`)
+## Phase 1 — Base Infrastructure: VPC, Subnets, EKS Cluster, and Prometheus (`cirobessa/kube-demo-2026`)
 
-> **Por que é o 1º?** Cria a VPC (`10.0.0.0/16`), as sub-redes públicas e privadas em 2 AZs, NAT Gateway, o cluster EKS `kube-demo-eks` (v1.35), o Node Group EC2 e o servidor **Prometheus** no namespace `monitoring`. Todos os demais repositórios descobrem essa VPC e esse cluster dinamicamente via `data "aws_eks_cluster"`.
+> **Why is this 1st?** It creates the VPC (`10.0.0.0/16`), public and private subnets across 2 Availability Zones, NAT Gateway, the `kube-demo-eks` (v1.35) cluster, the EC2 Managed Node Group, and the **Prometheus** server in the `monitoring` namespace. All other repositories dynamically discover this VPC and cluster via `data "aws_eks_cluster"`.
 
 ```bash
 gh auth switch -u cirobessa
 gh workflow run terraform.yml -R cirobessa/kube-demo-2026 -f action=apply
 ```
-- **Tempo médio:** ~12 a 15 minutos.
-- **Acompanhar execução:**
+- **Average duration:** ~12 to 15 minutes.
+- **Monitor progress:**
   ```bash
   gh run list -R cirobessa/kube-demo-2026 -L 1
   ```
 
 ---
 
-## Fase 2 — Configurar o `kubectl` Local
+## Phase 2 — Configure Local `kubectl`
 
-Assim que a Fase 1 concluir, atualize o `kubeconfig` da sua máquina para apontar para o novo cluster EKS:
+Once Phase 1 finishes, update your local `kubeconfig` to point to the newly created EKS cluster:
 
 ```bash
 aws eks update-kubeconfig --name kube-demo-eks --region us-east-1
@@ -78,67 +78,67 @@ kubectl get nodes
 
 ---
 
-## Fase 3 — Plataforma DevEx, Banco RDS, ArgoCD, SonarQube e Grafana (`cirodasilvaj/backstage-infra`)
+## Phase 3 — DevEx Platform, RDS Database, ArgoCD, SonarQube, and Grafana (`cirodasilvaj/backstage-infra`)
 
-> **Por que é o 2º deploy?** Conecta-se ao cluster `kube-demo-eks` recém-criado e provisiona em uma única execução:
-> 1. **ArgoCD** (exposto via AWS LoadBalancer na porta `80`/`8080`).
-> 2. **AWS RDS PostgreSQL 16 (`db.t4g.micro`)** na VPC do EKS (cria o banco `backstage_plugin_catalog` e o banco `sonarqube`).
-> 3. **Backstage Developer Portal** (`k8s-manifests/backstage/`) com RBAC `ClusterRole/backstage-kubernetes-deployer` (permissão total de leitura e deploy no EKS), restauração automática do `db/schema.sql` e endpoints `/backstage-rds-dump.sql` e `/k8s-cluster-status.json`.
-> 4. **SonarQube QA & Security** (`k8s-manifests/sonarqube/` + `terraform/modules/sonarqube/`) com plugins **OWASP Dependency-Check**, **SpotBugs/FindSecBugs**, **YAML/Kubernetes Analyzer**, **Python**, **C#** e **JaCoCo**, exposto via AWS LoadBalancer (`80`/`9000`).
-> 5. **Grafana** (`k8s-manifests/grafana/` + `terraform/modules/grafana/`) pré-conectado ao datasource do **Prometheus** (`http://prometheus-server.monitoring.svc.cluster.local`) e exposto via AWS LoadBalancer (`80`/`3000`).
-> 6. **Fluentd** para coleta de logs do cluster.
-> 7. **Disparo encadeado do `samba-ad-keycloak`** na mesma VPC do EKS.
+> **Why is this 2nd?** It connects to the newly created `kube-demo-eks` cluster and provisions in a single automated run:
+> 1. **ArgoCD** (exposed via AWS LoadBalancer on ports `80`/`8080`).
+> 2. **AWS RDS PostgreSQL 16 (`db.t4g.micro`)** inside the EKS VPC (creates both the `backstage_plugin_catalog` and `sonarqube` databases).
+> 3. **Backstage Developer Portal** (`k8s-manifests/backstage/`) with `ClusterRole/backstage-kubernetes-deployer` RBAC (full read and deploy permissions on EKS), automatic restoration of `db/schema.sql`, and `/backstage-rds-dump.sql` + `/k8s-cluster-status.json` endpoints.
+> 4. **SonarQube QA & Security** (`k8s-manifests/sonarqube/` + `terraform/modules/sonarqube/`) with **OWASP Dependency-Check**, **SpotBugs/FindSecBugs**, **YAML/Kubernetes Analyzer**, **Python**, **C#**, and **JaCoCo** plugins, exposed via AWS LoadBalancer (`80`/`9000`).
+> 5. **Grafana** (`k8s-manifests/grafana/` + `terraform/modules/grafana/`) pre-wired to the **Prometheus** datasource (`http://prometheus-server.monitoring.svc.cluster.local`) and exposed via AWS LoadBalancer (`80`/`3000`).
+> 6. **Fluentd** for cluster-wide container log collection.
+> 7. **Chained deployment of `samba-ad-keycloak`** inside the same EKS VPC.
 
 ```bash
 gh auth switch -u cirodasilvaj
 gh workflow run terraform.yml -R cirodasilvaj/backstage-infra -f action=apply
 ```
-- **Tempo médio:** ~6 a 8 minutos.
-- **Ao concluir, todos os URLs e credenciais aparecem no step `Sync Backstage manifests and show outputs`:**
-  - `argocd_external_url` + senha inicial do `admin`
+- **Average duration:** ~6 to 8 minutes.
+- **Upon completion, all external URLs and credentials are displayed in the `Sync Backstage manifests and show outputs` step:**
+  - `argocd_external_url` + initial `admin` password
   - `backstage_external_url` (`admin` / `Backstage@2026`)
   - `sonarqube_external_url` (`admin` / `Sonar@2026`)
   - `grafana_external_url` (`admin` / `Grafana@2026`)
 
 ---
 
-## Fase 4 — Active Directory (Samba 4 Multi-DC), FreeRADIUS MFA e Keycloak (`cirodasilvaj/samba-ad-keycloak`)
+## Phase 4 — Active Directory (Samba 4 Multi-DC), FreeRADIUS MFA, and Keycloak (`cirodasilvaj/samba-ad-keycloak`)
 
-> **Nota:** O workflow do `backstage-infra` (Fase 3) já executa automaticamente o Terraform do `samba-ad-keycloak` dentro da VPC do EKS! Caso queira executar ou atualizar isoladamente:
+> **Note:** The `backstage-infra` workflow (Phase 3) automatically executes the `samba-ad-keycloak` Terraform configuration inside the EKS VPC! If you wish to run or update it independently:
 
 ```bash
 gh auth switch -u cirodasilvaj
 gh workflow run deploy.yml -R cirodasilvaj/samba-ad-keycloak -f action=apply
 ```
-- Provisiona na VPC do EKS (`kube-demo-eks`):
-  - **Samba 4 AD DC 1 (`t3.micro`)** + **FreeRADIUS 3.0 + Google Authenticator TOTP MFA** na sub-rede privada AZ1.
-  - **Samba 4 AD DC 2 (`t3.micro`)** em réplica DRS (`--dns-backend=NONE`) + **FreeRADIUS** na sub-rede privada AZ2.
-  - **Keycloak 26 (`t3.micro`)** (IdP SAML 2.0 / OIDC federado ao Samba 4 LDAP e MFA RADIUS).
-  - **AWS Route 53 Private Hosted Zone (`empresa.local`)** associada à VPC do EKS (`dc1.empresa.local`, `dc2.empresa.local`, `ad.empresa.local`, `radius.empresa.local`, `sso.empresa.local` e registros SRV Kerberos/LDAP).
+- Provisions inside the `kube-demo-eks` VPC:
+  - **Samba 4 AD DC 1 (`t3.micro`)** + **FreeRADIUS 3.0 + Google Authenticator TOTP MFA** in Private Subnet AZ1.
+  - **Samba 4 AD DC 2 (`t3.micro`)** in DRS replication (`--dns-backend=NONE`) + **FreeRADIUS** in Private Subnet AZ2.
+  - **Keycloak 26 (`t3.micro`)** (SAML 2.0 / OIDC IdP federated to Samba 4 LDAP and RADIUS MFA).
+  - **AWS Route 53 Private Hosted Zone (`empresa.local`)** associated with the EKS VPC (`dc1.empresa.local`, `dc2.empresa.local`, `ad.empresa.local`, `radius.empresa.local`, `sso.empresa.local`, and Kerberos/LDAP SRV records).
 
 ---
 
-## Fase 5 — Aplicações Web Demo (Python & .NET C#) e Pipeline CI/CD com SonarQube (`cirodasilvaj/apps-demo-2026`)
+## Phase 5 — Demo Web Applications (Python & .NET C#) and QA/SonarQube CI/CD Pipeline (`cirodasilvaj/apps-demo-2026`)
 
-1. As aplicações **Python 3.12 (Flask)** e **.NET 8 (C# Minimal API)** já são sincronizadas automaticamente no namespace `apps-demo` pelo ArgoCD através do manifesto `k8s-manifests/backstage/argo-app-apps-demo.yaml`.
-2. Para rodar a pipeline de **QA Unit Tests + SonarQube Security Scan + Build GHCR**:
+1. Both the **Python 3.12 (Flask)** and **.NET 8 (C# Minimal API)** applications are automatically synchronized into the `apps-demo` namespace by ArgoCD via `k8s-manifests/backstage/argo-app-apps-demo.yaml`.
+2. To trigger the **QA Unit Tests + SonarQube Security Scan + GHCR Build** pipeline:
    ```bash
    gh auth switch -u cirodasilvaj
-   # Opcional: atualizar a URL do novo LoadBalancer do SonarQube no secret do repositório
-   gh secret set SONAR_HOST_URL -b "http://<NOVO_SONARQUBE_ELB>:9000" -R cirodasilvaj/apps-demo-2026
+   # Optional: update the new SonarQube LoadBalancer URL in the repository secret
+   gh secret set SONAR_HOST_URL -b "http://<NEW_SONARQUBE_ELB_HOSTNAME>:9000" -R cirodasilvaj/apps-demo-2026
    gh workflow run build.yml -R cirodasilvaj/apps-demo-2026
    ```
 
 ---
 
-## Resumo de Credenciais Padrão da Plataforma
+## Platform Default Credentials Summary
 
-| Serviço | Usuário | Senha Padrão | Porta / Caminho |
+| Service | Username | Default Password | Port / Endpoint |
 | :--- | :--- | :--- | :--- |
-| **Backstage Portal** | `admin` | `Backstage@2026` | `:80` ou `:7007` |
-| **SonarQube QA & Security** | `admin` | `Sonar@2026` (ou `admin` nos primeiros 2 min de boot) | `:80` ou `:9000` |
-| **Grafana Observability** | `admin` | `Grafana@2026` | `:80` ou `:3000` |
-| **ArgoCD GitOps** | `admin` | Gerada no secret `argocd-initial-admin-secret` (exibida no output do pipeline) | `:80` ou `:8080` |
-| **AWS RDS PostgreSQL** | `backstage` | `BackstageRds2026!` | `:5432` (interno na VPC) |
-| **Keycloak IAM** | `admin` | `KeycloakAdmin2026!` | `https://sso.empresa.local` (interno na VPC) |
+| **Backstage Portal** | `admin` | `Backstage@2026` | `:80` or `:7007` |
+| **SonarQube QA & Security** | `admin` | `Sonar@2026` (or `admin` during initial 2-min boot) | `:80` or `:9000` |
+| **Grafana Observability** | `admin` | `Grafana@2026` | `:80` or `:3000` |
+| **ArgoCD GitOps** | `admin` | Generated in `argocd-initial-admin-secret` (printed in pipeline output) | `:80` or `:8080` |
+| **AWS RDS PostgreSQL** | `backstage` | `BackstageRds2026!` | `:5432` (internal in VPC) |
+| **Keycloak IAM** | `admin` | `KeycloakAdmin2026!` | `https://sso.empresa.local` (internal in VPC) |
 | **Samba 4 AD (`EMPRESA.LOCAL`)** | `Administrator` | `SambaAdm2026!Strong` | LDAP `:389` / LDAPS `:636` / Kerberos `:88` |
