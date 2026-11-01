@@ -94,6 +94,8 @@ jobs:
           done
           kubectl create namespace backstage --dry-run=client -o yaml | kubectl apply -f -
           kubectl create namespace sonarqube --dry-run=client -o yaml | kubectl apply -f -
+          kubectl delete secret -n argocd sh.helm.release.v1.argocd.v2 sh.helm.release.v1.argocd.v3 --ignore-not-found || true
+          kubectl delete job -n argocd --all --ignore-not-found || true
           terraform import module.grafana.kubernetes_namespace.grafana grafana 2>/dev/null || true
 
       - name: Terraform validate
