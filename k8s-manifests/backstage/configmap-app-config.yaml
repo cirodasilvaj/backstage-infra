@@ -54,6 +54,10 @@ data:
           target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/python-sonarqube-cicd/template.yaml
         - type: url
           target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/dotnet-sonarqube-cicd/template.yaml
+        - type: url
+          target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/jvm-springboot-sonarqube-cicd/template.yaml
+        - type: url
+          target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/nodejs-sonarqube-cicd/template.yaml
   catalog-entities.yaml: |
     apiVersion: backstage.io/v1alpha1
     kind: Group

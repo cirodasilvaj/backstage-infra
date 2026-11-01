@@ -1,0 +1,99 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: jvm-springboot-sonarqube-cicd-template
+  title: JVM Spring Boot (Java 21) + CI/CD with SonarQube, Prometheus & Fluentd/Loki
+  description: >-
+    Creates a complete Java 21 / Spring Boot 3.3 microservice repository with Maven + JaCoCo tests,
+    SonarQube Quality Gate (SpotBugs/FindSecBugs & OWASP), Prometheus /metrics, Fluentd -> Loki JSON logs, and Backstage manifest.
+  tags:
+    - java
+    - jvm
+    - springboot
+    - k8s
+    - sonarqube
+    - prometheus
+    - fluentd
+    - loki
+    - cicd
+spec:
+  owner: squad-plataforma
+  type: service
+
+  parameters:
+    - title: Component Information
+      required:
+        - component_id
+        - owner
+        - description
+      properties:
+        component_id:
+          title: Service Name
+          type: string
+          description: Unique identifier (lowercase letters and hyphens)
+          pattern: '^[a-z0-9-]+$'
+          default: springboot-app-demo
+        description:
+          title: Description
+          type: string
+          description: What does this Spring Boot microservice do?
+          default: JVM Spring Boot 3.3 microservice with SonarQube Quality Gate, Prometheus metrics and Fluentd/Loki logs
+        owner:
+          title: Responsible Team
+          type: string
+          description: Squad that owns the application (e.g., squad-checkout)
+          default: platform-team
+        system:
+          title: System / Domain
+          type: string
+          default: kube-demo-2026
+
+    - title: Git Destination
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
+  steps:
+    - id: fetch-base
+      name: Rendering Template
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          component_id: ${{ parameters.component_id }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          destinationOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+
+    - id: publish-git
+      name: Publishing Repository
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+        repoVisibility: public
+
+    - id: register-catalog
+      name: Registering in Backstage
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish-git'].output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Open Git Repository
+        url: ${{ steps['publish-git'].output.remoteUrl }}
+      - title: View in Backstage Catalog
+        icon: catalog
+        entityRef: ${{ steps['register-catalog'].output.entityRef }}

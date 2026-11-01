@@ -1,0 +1,51 @@
+name: CI & Quality Gate (Node.js)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  qa-and-security:
+    name: Node.js QA Tests & SonarQube Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Built-in Node.js QA Tests
+        run: npm test
+
+      - name: SonarQube Scanner
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ '${{ secrets.SONAR_TOKEN }}' }}
+          SONAR_HOST_URL: ${{ '${{ secrets.SONAR_HOST_URL }}' }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ values.component_id }}
+            -Dsonar.projectName=${{ values.component_id }}
+            -Dsonar.sources=server.js
+
+      - name: SonarQube Quality Gate Check
+        uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ '${{ secrets.SONAR_TOKEN }}' }}
+
+  deploy:
+    name: Deploy to Kubernetes
+    needs: qa-and-security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Step
+        run: echo "Quality Gate approved! Starting deployment of ${{ values.component_id }}..."
