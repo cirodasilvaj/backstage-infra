@@ -34,9 +34,25 @@ jobs:
           SONAR_TOKEN: ${{ '${{ secrets.SONAR_TOKEN }}' }}
 
   deploy:
-    name: Deploy to Kubernetes
+    name: Deploy to Kubernetes & Provision Grafana Dashboard
     needs: qa-and-security
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Provision Service Dashboard in Grafana (Prometheus + Fluentd/Loki)
+        env:
+          GRAFANA_URL: ${{ '${{ secrets.GRAFANA_URL }}' }}
+          GRAFANA_USER: ${{ "${{ secrets.GRAFANA_USER || 'admin' }}" }}
+          GRAFANA_PASSWORD: ${{ "${{ secrets.GRAFANA_PASSWORD || 'Grafana@2026' }}" }}
+        run: |
+          if [ -n "${GRAFANA_URL}" ]; then
+            curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
+              -X POST "${GRAFANA_URL}/api/dashboards/db" \
+              -H "Content-Type: application/json" \
+              -d @grafana/dashboard.json || true
+          fi
+
       - name: Deploy Step
         run: echo "Quality Gate approved! Starting deployment of ${{ values.component_id }}..."

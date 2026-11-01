@@ -1,0 +1,75 @@
+{
+  "overwrite": true,
+  "dashboard": {
+    "uid": "${{ values.component_id }}-dashboard",
+    "title": "Service: ${{ values.component_id }} (.NET 8 C#) — Prometheus & Fluentd/Loki",
+    "tags": ["${{ values.component_id }}", "dotnet", "csharp", "prometheus", "loki", "fluentd"],
+    "timezone": "browser",
+    "schemaVersion": 39,
+    "refresh": "15s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "HTTP Requests Total — ${{ values.component_id }} (Prometheus /metrics)",
+        "type": "timeseries",
+        "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
+        "targets": [
+          {
+            "expr": "sum by (endpoint) (app_http_requests_total{app=\"${{ values.component_id }}\"})",
+            "legendFormat": "{{endpoint}}"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": ".NET 8 Uptime & CPU Usage — ${{ values.component_id }} (Prometheus)",
+        "type": "timeseries",
+        "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
+        "targets": [
+          {
+            "expr": "app_uptime_seconds{app=\"${{ values.component_id }}\"}",
+            "legendFormat": "uptime (s)"
+          },
+          {
+            "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{pod=~\"${{ values.component_id }}.*\",container!=\"\"}[5m]))",
+            "legendFormat": "CPU: {{pod}}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": ".NET 8 Pod Memory Working Set — ${{ values.component_id }} (Prometheus)",
+        "type": "timeseries",
+        "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 },
+        "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
+        "targets": [
+          {
+            "expr": "sum by (pod) (container_memory_working_set_bytes{pod=~\"${{ values.component_id }}.*\",container!=\"\"})",
+            "legendFormat": "{{pod}}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Live .NET 8 C# Logs — ${{ values.component_id }} (Fluentd -> Loki)",
+        "type": "logs",
+        "gridPos": { "h": 10, "w": 24, "x": 0, "y": 7 },
+        "datasource": { "type": "loki", "uid": "loki-eks" },
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "wrapLogMessage": true,
+          "enableLogDetails": true,
+          "sortOrder": "Descending"
+        },
+        "targets": [
+          {
+            "expr": "{app=\"${{ values.component_id }}\"}"
+          }
+        ]
+      }
+    ]
+  }
+}

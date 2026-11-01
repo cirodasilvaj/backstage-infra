@@ -10,6 +10,8 @@ metadata:
     prometheus.io/scrape: "true"
     prometheus.io/path: "/metrics"
     fluentd.io/destination: "loki"
+    grafana/dashboard-selector: "tag == '${{ values.component_id }}'"
+    grafana/overview-dashboard: "d/${{ values.component_id }}-dashboard"
 spec:
   type: service
   lifecycle: experimental
