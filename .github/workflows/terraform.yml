@@ -46,7 +46,8 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -60,11 +61,17 @@ jobs:
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           BUCKET="backstage-infra-tfstate-${ACCOUNT_ID}"
           echo "STATE_BUCKET=${BUCKET}" >> "$GITHUB_ENV"
+          REGION="${{ secrets.AWS_REGION || 'us-east-1' }}"
           if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
             echo "State bucket ${BUCKET} already exists."
           else
             echo "Creating state bucket ${BUCKET} ..."
-            aws s3api create-bucket --bucket "$BUCKET"
+            if [ "$REGION" = "us-east-1" ]; then
+              aws s3api create-bucket --bucket "$BUCKET"
+            else
+              aws s3api create-bucket --bucket "$BUCKET" \
+                --create-bucket-configuration LocationConstraint="${REGION}"
+            fi
             aws s3api put-bucket-versioning --bucket "$BUCKET" \
               --versioning-configuration Status=Enabled
             aws s3api put-public-access-block --bucket "$BUCKET" \
@@ -78,7 +85,7 @@ jobs:
           terraform init -input=false -reconfigure \
             -backend-config="bucket=${STATE_BUCKET}" \
             -backend-config="key=backstage-infra/terraform.tfstate" \
-            -backend-config="region=${AWS_REGION}" \
+            -backend-config="region=${{ secrets.AWS_REGION || 'us-east-1' }}" \
             -backend-config="use_lockfile=true"
 
       - name: Terraform fmt check
@@ -87,7 +94,7 @@ jobs:
 
       - name: Pre-install ArgoCD CRDs and ensure backstage namespace
         run: |
-          aws eks update-kubeconfig --name "kube-demo-eks" --region "${AWS_REGION}"
+          aws eks update-kubeconfig --name "kube-demo-eks" --region "${AWS_REGION:-${{ secrets.AWS_REGION || 'us-east-1' }}}"
           kubectl apply -k https://github.com/argoproj/argo-cd/manifests/crds\?ref=v2.12.3
           for crd in applications.argoproj.io applicationsets.argoproj.io appprojects.argoproj.io; do
             kubectl label crd "$crd" app.kubernetes.io/managed-by=Helm --overwrite || true
@@ -142,7 +149,7 @@ jobs:
           terraform init -input=false -reconfigure \
             -backend-config="bucket=${STATE_BUCKET}" \
             -backend-config="key=samba-ad-keycloak/terraform.tfstate" \
-            -backend-config="region=${AWS_REGION}" \
+            -backend-config="region=${AWS_REGION:-${{ secrets.AWS_REGION || 'us-east-1' }}}" \
             -backend-config="use_lockfile=true"
           terraform apply -input=false -auto-approve
           kubectl apply -f ../k8s/eks-iam-integration.yaml || true

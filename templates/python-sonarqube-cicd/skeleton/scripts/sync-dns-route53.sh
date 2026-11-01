@@ -10,6 +10,9 @@ NAMESPACE="apps-demo"
 
 echo "🔍 Buscando Hosted Zone pública no Route 53..."
 ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[?contains(Name, 'realhandsonlabs.net') && !Config.PrivateZone] | [0]" --output json 2>/dev/null || true)
+if [ "$ZONE_INFO" = "null" ] || [ -z "$ZONE_INFO" ]; then
+  ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[!Config.PrivateZone] | [0]" --output json 2>/dev/null || true)
+fi
 
 if [ "$ZONE_INFO" = "null" ] || [ -z "$ZONE_INFO" ]; then
   echo "⚠️ Nenhuma Hosted Zone pública encontrada."
