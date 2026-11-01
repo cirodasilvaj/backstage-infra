@@ -57,7 +57,7 @@ flowchart TD
 
 ```bash
 gh auth switch -u cirobessa
-gh workflow run terraform.yml -R cirobessa/kube-demo-2026 -f action=apply
+gh workflow run eks.yml -R cirobessa/kube-demo-2026 -f action=apply
 ```
 - **Average duration:** ~12 to 15 minutes.
 - **Monitor progress:**
