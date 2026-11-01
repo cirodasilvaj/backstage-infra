@@ -26,6 +26,14 @@ data:
           port: ${POSTGRES_PORT}
           user: ${POSTGRES_USER}
           password: ${POSTGRES_PASSWORD}
+    auth:
+      environment: development
+      providers:
+        guest: {}
+        github:
+          development:
+            clientId: ${GITHUB_CLIENT_ID:-dummy-client-id}
+            clientSecret: ${GITHUB_CLIENT_SECRET:-dummy-client-secret}
     kubernetes:
       serviceLocatorMethod:
         type: 'multiTenant'

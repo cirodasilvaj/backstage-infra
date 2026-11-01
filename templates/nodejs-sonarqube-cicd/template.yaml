@@ -50,15 +50,19 @@ spec:
 
     - title: Git Destination
       required:
-        - repoUrl
+        - destinationOwner
+        - repository
       properties:
-        repoUrl:
-          title: Repository
+        destinationOwner:
+          title: GitHub Owner / Organization
           type: string
-          ui:field: RepoUrlPicker
-          ui:options:
-            allowedHosts:
-              - github.com
+          description: GitHub user or organization where the repository will be created
+          default: cirodasilvaj
+        repository:
+          title: GitHub Repository Name
+          type: string
+          description: Target repository name to create on GitHub
+          default: nodejs-app-demo
 
   steps:
     - id: fetch-base
@@ -71,15 +75,15 @@ spec:
           description: ${{ parameters.description }}
           owner: ${{ parameters.owner }}
           system: ${{ parameters.system }}
-          destinationOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+          destinationOwner: ${{ parameters.destinationOwner }}
 
     - id: publish-git
-      name: Publishing Repository
+      name: Publishing Repository to GitHub
       action: publish:github
       input:
         allowedHosts: ['github.com']
         description: ${{ parameters.description }}
-        repoUrl: ${{ parameters.repoUrl }}
+        repoUrl: github.com?owner=${{ parameters.destinationOwner }}&repo=${{ parameters.repository }}
         defaultBranch: main
         repoVisibility: public
 
