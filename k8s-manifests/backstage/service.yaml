@@ -3,6 +3,16 @@ kind: Service
 metadata:
   name: backstage
   namespace: backstage
+  labels:
+    app.kubernetes.io/name: backstage
+    app.kubernetes.io/part-of: backstage-infra
+    app.kubernetes.io/component: idp-portal
+    app.kubernetes.io/managed-by: terraform
+    environment: sandbox
+    cost-center: devops-platform-cloud
+    cloud-provider: aws
+    source-project: backstage-infra
+    owner: platform-team
 spec:
   type: ClusterIP
   selector:

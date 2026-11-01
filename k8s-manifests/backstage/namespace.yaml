@@ -2,3 +2,14 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: backstage
+  labels:
+    name: backstage
+    app.kubernetes.io/name: backstage
+    app.kubernetes.io/part-of: backstage-infra
+    app.kubernetes.io/managed-by: terraform
+    app.kubernetes.io/created-by: github-actions
+    environment: sandbox
+    cost-center: devops-platform-cloud
+    cloud-provider: aws
+    source-project: backstage-infra
+    owner: platform-team

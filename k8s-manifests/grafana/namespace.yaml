@@ -3,5 +3,13 @@ kind: Namespace
 metadata:
   name: grafana
   labels:
+    name: grafana
     app.kubernetes.io/name: grafana
-    app.kubernetes.io/part-of: kube-demo-2026
+    app.kubernetes.io/part-of: backstage-infra
+    app.kubernetes.io/managed-by: terraform
+    app.kubernetes.io/created-by: github-actions
+    environment: sandbox
+    cost-center: devops-platform-cloud
+    cloud-provider: aws
+    source-project: backstage-infra
+    owner: platform-team

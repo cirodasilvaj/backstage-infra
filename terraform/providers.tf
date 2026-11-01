@@ -19,6 +19,22 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = {
+      Project           = "backstage-infra"
+      SourceProject     = "backstage-infra"
+      Environment       = "sandbox"
+      ManagedBy         = "terraform"
+      ResourceGenerator = "terraform"
+      CostCenter        = "devops-platform-cloud"
+      CloudProvider     = "aws"
+      Owner             = "platform-team"
+      Repository        = "https://github.com/cirodasilvaj/backstage-infra"
+      Lifecycle         = "ephemeral-7h"
+      Provisioner       = "github-actions"
+    }
+  }
 }
 
 # Points at the EKS cluster already provisioned by the kube-demo-2026 repo
