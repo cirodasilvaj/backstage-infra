@@ -16,12 +16,27 @@ spec:
       labels:
         app.kubernetes.io/name: dotnet-csharp-demo-app
         backstage.io/kubernetes-id: dotnet-csharp-demo-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+        fluentd.io/collect: "true"
+        fluentd.io/parser: "json"
+        fluentd.io/destination: "loki"
     spec:
       containers:
         - name: dotnet-csharp-demo-app
           image: ghcr.io/cirodasilvaj/apps-demo-2026/dotnet-csharp-app:latest
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
+          env:
+            - name: APP_NAME
+              value: "dotnet-csharp-demo-app"
+            - name: FLUENTD_HOST
+              value: "fluentd.logging.svc.cluster.local"
+            - name: FLUENTD_PORT
+              value: "24224"
           readinessProbe:
             httpGet:
               path: /healthz
@@ -33,3 +48,23 @@ spec:
             limits:
               cpu: 200m
               memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dotnet-csharp-demo-app
+  namespace: apps-demo
+  labels:
+    app.kubernetes.io/name: dotnet-csharp-demo-app
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dotnet-csharp-demo-app
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

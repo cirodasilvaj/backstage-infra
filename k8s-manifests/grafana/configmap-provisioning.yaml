@@ -19,12 +19,19 @@ data:
         jsonData:
           httpMethod: POST
           timeInterval: 15s
+      - name: Loki
+        type: loki
+        uid: loki-eks
+        access: proxy
+        url: http://loki.grafana.svc.cluster.local:3100
+        isDefault: false
+        editable: true
   dashboards.yaml: |
     apiVersion: 1
     providers:
-      - name: 'EKS Prometheus Dashboards'
+      - name: 'EKS Observability (Prometheus & Loki)'
         orgId: 1
-        folder: 'Kubernetes EKS'
+        folder: 'EKS Observability (Prometheus & Loki)'
         type: file
         disableDeletion: false
         editable: true
@@ -32,49 +39,73 @@ data:
           path: /etc/grafana/provisioning/dashboards/json
   eks-overview.json: |
     {
-      "title": "EKS Cluster & Pods Metrics (Prometheus)",
+      "title": "1. Apps Demo, ArgoCD & SonarQube - Metrics (Prometheus) & Logs (Fluentd -> Loki)",
       "uid": "eks-prometheus-overview",
       "timezone": "browser",
       "schemaVersion": 39,
-      "version": 1,
-      "refresh": "30s",
+      "version": 2,
+      "refresh": "15s",
       "panels": [
         {
           "id": 1,
-          "title": "CPU Usage by Namespace",
+          "title": "Apps Demo HTTP Requests Total (Prometheus /metrics)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
           "targets": [
             {
-              "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m])) by (namespace)",
-              "legendFormat": "{{namespace}}"
+              "expr": "sum by (app, language, endpoint) (app_http_requests_total)",
+              "legendFormat": "{{app}} ({{language}}) {{endpoint}}"
             }
           ]
         },
         {
           "id": 2,
-          "title": "Memory Working Set by Namespace (Bytes)",
+          "title": "ArgoCD Applications & Pods CPU Usage (Prometheus)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
           "targets": [
             {
-              "expr": "sum(container_memory_working_set_bytes{container!=\"\"}) by (namespace)",
-              "legendFormat": "{{namespace}}"
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=~\"argocd|apps-demo\",container!=\"\"}[5m]))",
+              "legendFormat": "{{pod}}"
             }
           ]
         },
         {
           "id": 3,
-          "title": "Running Pods Count by Namespace",
-          "type": "stat",
-          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 8 },
-          "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
+          "title": "Fluentd -> Loki Log Volume by Namespace (5m)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 },
+          "datasource": { "type": "loki", "uid": "loki-eks" },
           "targets": [
             {
-              "expr": "count(kube_pod_info) by (namespace)",
+              "expr": "sum by (namespace) (count_over_time({job=\"fluentd\"}[5m]))",
               "legendFormat": "{{namespace}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Apps Demo Live Logs (Fluentd -> Loki)",
+          "type": "logs",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+          "datasource": { "type": "loki", "uid": "loki-eks" },
+          "targets": [
+            {
+              "expr": "{namespace=\"apps-demo\"}"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "SonarQube & ArgoCD Live Logs (Fluentd -> Loki)",
+          "type": "logs",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+          "datasource": { "type": "loki", "uid": "loki-eks" },
+          "targets": [
+            {
+              "expr": "{namespace=~\"sonarqube|argocd\"}"
             }
           ]
         }

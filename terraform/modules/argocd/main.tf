@@ -30,6 +30,44 @@ resource "helm_release" "argocd" {
     name  = "configs.params.server\\.insecure"
     value = "true"
   }
+
+  # Enable ArgoCD Prometheus metrics for controller, server and repo-server
+  set {
+    name  = "controller.metrics.enabled"
+    value = "true"
+  }
+  set {
+    name  = "controller.metrics.service.annotations.prometheus\\.io/scrape"
+    value = "true"
+  }
+  set {
+    name  = "controller.metrics.service.annotations.prometheus\\.io/port"
+    value = "8082"
+  }
+  set {
+    name  = "server.metrics.enabled"
+    value = "true"
+  }
+  set {
+    name  = "server.metrics.service.annotations.prometheus\\.io/scrape"
+    value = "true"
+  }
+  set {
+    name  = "server.metrics.service.annotations.prometheus\\.io/port"
+    value = "8083"
+  }
+  set {
+    name  = "repoServer.metrics.enabled"
+    value = "true"
+  }
+  set {
+    name  = "repoServer.metrics.service.annotations.prometheus\\.io/scrape"
+    value = "true"
+  }
+  set {
+    name  = "repoServer.metrics.service.annotations.prometheus\\.io/port"
+    value = "8084"
+  }
 }
 
 # External LoadBalancer service for demo access to the ArgoCD Web UI.
