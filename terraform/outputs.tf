@@ -330,3 +330,46 @@ output "sonarqube_security_plugins_installed" {
   value       = module.sonarqube.security_plugins_installed
 }
 
+# ==============================================================================
+# Route 53 Dynamic DNS Endpoints
+# ==============================================================================
+
+output "route53_discovered_zone_id" {
+  description = "Discovered Route 53 public hosted zone ID for the lab account"
+  value       = local.lab_zone_id
+}
+
+output "route53_discovered_domain" {
+  description = "Discovered Route 53 base domain for the lab account"
+  value       = local.lab_domain
+}
+
+output "route53_friendly_urls" {
+  description = "Clean, friendly HTTP URLs mapped to Route 53 for all services"
+  value = {
+    for k, r in aws_route53_record.services :
+    k => "http://${r.fqdn}"
+  }
+}
+
+output "route53_backstage_url" {
+  description = "Friendly Route 53 URL for Backstage UI"
+  value       = local.has_lab_zone ? "http://backstage.${local.lab_domain}" : module.backstage_app.external_url
+}
+
+output "route53_grafana_url" {
+  description = "Friendly Route 53 URL for Grafana UI"
+  value       = local.has_lab_zone ? "http://grafana.${local.lab_domain}" : module.grafana.external_url
+}
+
+output "route53_argocd_url" {
+  description = "Friendly Route 53 URL for ArgoCD Web UI"
+  value       = local.has_lab_zone ? "http://argocd.${local.lab_domain}" : module.argocd.external_url
+}
+
+output "route53_sonarqube_url" {
+  description = "Friendly Route 53 URL for SonarQube QA & Security UI"
+  value       = local.has_lab_zone ? "http://sonarqube.${local.lab_domain}" : module.sonarqube.external_url
+}
+
+

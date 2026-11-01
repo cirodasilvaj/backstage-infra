@@ -87,18 +87,21 @@ kubectl get nodes
 > 4. **SonarQube QA & Security** (`k8s-manifests/sonarqube/` + `terraform/modules/sonarqube/`) with **OWASP Dependency-Check**, **SpotBugs/FindSecBugs**, **YAML/Kubernetes Analyzer**, **Python**, **C#**, and **JaCoCo** plugins, exposed via AWS LoadBalancer (`80`/`9000`).
 > 5. **Grafana** (`k8s-manifests/grafana/` + `terraform/modules/grafana/`) pre-wired to the **Prometheus** datasource (`http://prometheus-server.monitoring.svc.cluster.local`) and exposed via AWS LoadBalancer (`80`/`3000`).
 > 6. **Fluentd** for cluster-wide container log collection.
-> 7. **Chained deployment of `samba-ad-keycloak`** inside the same EKS VPC.
+> 7. **Automatic Route 53 DNS delegation** (`terraform/dns.tf`), discovering the lab's public hosted zone (`*realhandsonlabs.net`) and mapping friendly CNAMEs (`backstage.*`, `grafana.*`, `argocd.*`, `sonarqube.*`) to their respective LoadBalancers on port 80.
+> 8. **Chained deployment of `samba-ad-keycloak`** inside the same EKS VPC.
 
 ```bash
 gh auth switch -u cirodasilvaj
 gh workflow run terraform.yml -R cirodasilvaj/backstage-infra -f action=apply
 ```
 - **Average duration:** ~6 to 8 minutes.
-- **Upon completion, all external URLs and credentials are displayed in the `Sync Backstage manifests and show outputs` step:**
-  - `argocd_external_url` + initial `admin` password
-  - `backstage_external_url` (`admin` / `Backstage@2026`)
-  - `sonarqube_external_url` (`admin` / `Sonar@2026`)
-  - `grafana_external_url` (`admin` / `Grafana@2026`)
+- **Upon completion, friendly Route 53 URLs, ELB endpoints, and credentials are displayed in the GitHub Step Summary:**
+  - `route53_backstage_url`: `http://backstage.<lab-id>.realhandsonlabs.net` (`admin` / `Backstage@2026`)
+  - `route53_grafana_url`: `http://grafana.<lab-id>.realhandsonlabs.net` (`admin` / `Grafana@2026`)
+  - `route53_argocd_url`: `http://argocd.<lab-id>.realhandsonlabs.net` (`admin` / initial admin secret)
+  - `route53_sonarqube_url`: `http://sonarqube.<lab-id>.realhandsonlabs.net` (`admin` / `Sonar@2026`)
+  *(Fallback ELB URLs are also preserved: `argocd_external_url`, `backstage_external_url`, `sonarqube_external_url`, `grafana_external_url`)*
+- **Manual CLI sync tool (optional):** `./scripts/sync-dns-route53.sh` can be executed at any time to re-sync or verify Route 53 records from local terminal.
 
 ---
 

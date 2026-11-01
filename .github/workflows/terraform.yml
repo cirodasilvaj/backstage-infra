@@ -147,4 +147,18 @@ jobs:
           kubectl get pods -A
           echo "--- CLUSTER SERVICES ---"
           kubectl get svc -A
+          echo "--- FRIENDLY ROUTE 53 URLS ---"
+          cd "$GITHUB_WORKSPACE/terraform"
+          terraform output -json route53_friendly_urls || true
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "lab")
+            echo "### 🌐 Friendly Route 53 Service Endpoints (AWS Account: ${ACCOUNT_ID})" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Service | URL | Default Credentials |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **Backstage** | $(terraform output -raw route53_backstage_url 2>/dev/null || true) | \`admin\` / \`Backstage@2026\` |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **Grafana** | $(terraform output -raw route53_grafana_url 2>/dev/null || true) | \`admin\` / \`Grafana@2026\` |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **ArgoCD** | $(terraform output -raw route53_argocd_url 2>/dev/null || true) | \`admin\` / (ver initial secret) |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **SonarQube** | $(terraform output -raw route53_sonarqube_url 2>/dev/null || true) | \`admin\` / \`Sonar@2026\` |" >> "$GITHUB_STEP_SUMMARY"
+          fi
         continue-on-error: true
