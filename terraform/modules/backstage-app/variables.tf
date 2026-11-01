@@ -67,3 +67,16 @@ variable "cluster_name" {
   default     = "kube-demo-eks"
 }
 
+variable "github_token" {
+  description = "GitHub Personal Access Token for Backstage Scaffolder repository creation and catalog integrations"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "acm_certificate_arn" {
+  description = "AWS ACM SSL/TLS certificate ARN for HTTPS termination on the external LoadBalancer"
+  type        = string
+  default     = ""
+}
+

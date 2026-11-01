@@ -136,3 +136,10 @@ variable "sonarqube_admin_password" {
   default     = "Sonar@2026"
 }
 
+variable "github_token" {
+  description = "GitHub Personal Access Token for Backstage Scaffolder repository creation and catalog integrations"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+

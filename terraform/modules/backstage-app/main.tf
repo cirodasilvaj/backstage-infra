@@ -87,6 +87,23 @@ resource "kubernetes_secret_v1" "backstage_k8s_config" {
   type = "Opaque"
 }
 
+# GitHub Token Secret for Backstage Scaffolder repository creation and catalog integrations
+resource "kubernetes_secret_v1" "backstage_github_credentials" {
+  metadata {
+    name      = "backstage-github-credentials"
+    namespace = var.app_namespace
+    labels = {
+      app = "backstage"
+    }
+  }
+
+  data = {
+    token = var.github_token
+  }
+
+  type = "Opaque"
+}
+
 # External LoadBalancer service for demo access to the Backstage UI.
 resource "kubernetes_service_v1" "backstage_external" {
   metadata {
@@ -95,9 +112,16 @@ resource "kubernetes_service_v1" "backstage_external" {
     labels = {
       app = "backstage"
     }
-    annotations = {
-      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
-    }
+    annotations = merge(
+      {
+        "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+      },
+      var.acm_certificate_arn != "" ? {
+        "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"        = var.acm_certificate_arn
+        "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"       = "https"
+        "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "http"
+      } : {}
+    )
   }
 
   spec {
@@ -112,6 +136,16 @@ resource "kubernetes_service_v1" "backstage_external" {
       port        = 80
       target_port = 7007
       protocol    = "TCP"
+    }
+
+    dynamic "port" {
+      for_each = var.acm_certificate_arn != "" ? [1] : []
+      content {
+        name        = "https"
+        port        = 443
+        target_port = 7007
+        protocol    = "TCP"
+      }
     }
 
     port {
@@ -129,5 +163,6 @@ resource "kubernetes_service_v1" "backstage_external" {
     kubernetes_secret_v1.backstage_basic_auth,
     kubernetes_secret_v1.backstage_db_credentials,
     kubernetes_secret_v1.backstage_k8s_config,
+    kubernetes_secret_v1.backstage_github_credentials,
   ]
 }

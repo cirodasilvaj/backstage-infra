@@ -142,6 +142,19 @@ spec:
               mountPath: /dumps
         - name: backstage
           image: roadiehq/community-backstage-image:latest
+          env:
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-github-credentials
+                  key: token
+                  optional: true
+            - name: K8S_SA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-k8s-sa-token
+                  key: token
+                  optional: true
           envFrom:
             - secretRef:
                 name: backstage-db-credentials

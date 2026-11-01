@@ -43,6 +43,9 @@ module "backstage_app" {
   db_password  = var.rds_db_password
   cluster_name = var.eks_cluster_name
 
+  github_token        = var.github_token
+  acm_certificate_arn = local.has_lab_zone ? aws_acm_certificate_validation.lab_cert[0].certificate_arn : ""
+
   depends_on = [module.argocd, module.rds]
 }
 

@@ -37,7 +37,15 @@ data:
               authProvider: 'serviceAccount'
               skipTLSVerify: true
               skipMetricsLookup: false
-    integrations: {}
+    integrations:
+      github:
+        - host: github.com
+          token: ${GITHUB_TOKEN}
+    scaffolder:
+      defaultAuthor:
+        name: Backstage Scaffolder
+        email: platform-team@empresa.local
+      defaultCommitMessage: "feat: initial service scaffold from Backstage template"
     catalog:
       rules:
         - allow: [Component, System, API, Resource, Location, Group, User, Template]
