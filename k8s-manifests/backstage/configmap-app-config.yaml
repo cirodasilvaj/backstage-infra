@@ -49,6 +49,8 @@ data:
         - type: url
           target: https://github.com/cirodasilvaj/samba-ad-keycloak/blob/main/catalog-info.yaml
         - type: url
+          target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/microservice-template/template.yaml
+        - type: url
           target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/python-sonarqube-cicd/template.yaml
         - type: url
           target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/dotnet-sonarqube-cicd/template.yaml

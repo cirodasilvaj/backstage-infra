@@ -1,12 +1,17 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: dotnet-csharp-demo-app
-  description: .NET 8 C# application with CI/CD pipeline and QA/Security gate via SonarQube
+  name: ${{ values.component_id }}
+  description: ${{ values.description }}
   annotations:
-    backstage.io/kubernetes-id: dotnet-csharp-demo-app
-    sonarqube.org/project-key: dotnet-csharp-demo-app
+    github.com/project-slug: ${{ values.destinationOwner }}/${{ values.component_id }}
+    sonarqube.org/project-key: ${{ values.component_id }}
+    backstage.io/kubernetes-id: ${{ values.component_id }}
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    fluentd.io/destination: "loki"
 spec:
   type: service
-  lifecycle: production
-  owner: group:default/platform-team
+  lifecycle: experimental
+  owner: ${{ values.owner }}
+  system: ${{ values.system }}

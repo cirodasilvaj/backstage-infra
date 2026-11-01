@@ -2,73 +2,97 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: dotnet-sonarqube-cicd-template
-  title: .NET 8 C# Web App + CI/CD with QA & SonarQube Security Gate
+  title: .NET 8 C# Web App + CI/CD with QA, SonarQube, Prometheus & Fluentd/Loki
   description: >-
-    Complete .NET 8 C# Minimal API application skeleton with automated QA tests (dotnet test + Cobertura),
-    SonarQube static quality and security analysis (dotnet-sonarscanner + Roslyn Security + OWASP),
-    GHCR container build, and GitOps manifest for ArgoCD deployment on EKS.
+    Creates a complete .NET 8 C# Minimal API repository with automated QA tests,
+    SonarQube Quality Gate validation, Prometheus /metrics, Fluentd -> Loki logging, and Backstage manifest.
   tags:
     - dotnet
     - csharp
+    - k8s
     - sonarqube
-    - qa
-    - devsecops
-    - github-actions
-    - eks
+    - prometheus
+    - fluentd
+    - loki
+    - cicd
 spec:
-  owner: group:default/platform-team
+  owner: squad-plataforma
   type: service
+
   parameters:
-    - title: Service Identification
+    - title: Component Information
       required:
         - component_id
+        - owner
         - description
       properties:
         component_id:
-          title: Application Name
+          title: Service Name
           type: string
-          description: Unique microservice identifier (e.g., orders-dotnet-api)
+          description: Unique identifier (lowercase letters and hyphens)
+          pattern: '^[a-z0-9-]+$'
           default: dotnet-csharp-app-demo
         description:
           title: Description
           type: string
-          description: Brief description of the service
-          default: .NET 8 C# application with CI/CD pipeline integrated with SonarQube QA & Security
-        sonar_host_url:
-          title: SonarQube URL in EKS Cluster
+          description: What does this microservice do?
+          default: .NET 8 C# microservice with SonarQube Quality Gate, Prometheus metrics and Fluentd/Loki logs
+        owner:
+          title: Responsible Team
           type: string
-          default: http://sonarqube.sonarqube.svc.cluster.local:9000
+          description: Squad that owns the application (e.g., squad-checkout)
+          default: platform-team
+        system:
+          title: System / Domain
+          type: string
+          default: kube-demo-2026
+
+    - title: Git Destination
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
   steps:
     - id: fetch-base
-      name: Generate .NET 8 C# Skeleton with CI/CD Pipeline + SonarQube QA
+      name: Rendering Template
       action: fetch:template
       input:
         url: ./skeleton
         values:
           component_id: ${{ parameters.component_id }}
           description: ${{ parameters.description }}
-          sonar_host_url: ${{ parameters.sonar_host_url }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          destinationOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
 
-    - id: publish
-      name: Publish Repository to GitHub
+    - id: publish-git
+      name: Publishing Repository
       action: publish:github
       input:
         allowedHosts: ['github.com']
         description: ${{ parameters.description }}
-        repoUrl: github.com?owner=cirodasilvaj&repo=${{ parameters.component_id }}
+        repoUrl: ${{ parameters.repoUrl }}
         defaultBranch: main
+        repoVisibility: public
 
-    - id: register
-      name: Register Component in Backstage Catalog
+    - id: register-catalog
+      name: Registering in Backstage
       action: catalog:register
       input:
-        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        repoContentsUrl: ${{ steps['publish-git'].output.repoContentsUrl }}
         catalogInfoPath: '/catalog-info.yaml'
 
   output:
     links:
-      - title: GitHub Repository
-        url: ${{ steps['publish'].output.remoteUrl }}
-      - title: Open in Backstage Catalog
+      - title: Open Git Repository
+        url: ${{ steps['publish-git'].output.remoteUrl }}
+      - title: View in Backstage Catalog
         icon: catalog
-        entityRef: ${{ steps['register'].output.entityRef }}
+        entityRef: ${{ steps['register-catalog'].output.entityRef }}

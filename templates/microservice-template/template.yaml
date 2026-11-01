@@ -1,0 +1,100 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: standard-microservice-template
+  title: Standard Microservice with CI/CD, SonarQube, Prometheus & Fluentd/Loki
+  description: Creates a ready-to-use repository with a test pipeline, SonarQube Quality Gate validation, Prometheus metrics, Fluentd/Loki logging, and Backstage manifest.
+  tags:
+    - node
+    - python
+    - k8s
+    - sonarqube
+    - prometheus
+    - fluentd
+    - loki
+    - cicd
+spec:
+  owner: squad-plataforma
+  type: service
+
+  # Parameters collected in the Backstage UI
+  parameters:
+    - title: Component Information
+      required:
+        - component_id
+        - owner
+        - description
+      properties:
+        component_id:
+          title: Service Name
+          type: string
+          description: Unique identifier (lowercase letters and hyphens)
+          pattern: '^[a-z0-9-]+$'
+        description:
+          title: Description
+          type: string
+          description: What does this microservice do?
+        owner:
+          title: Responsible Team
+          type: string
+          description: Squad that owns the application (e.g., squad-checkout)
+          default: platform-team
+        system:
+          title: System / Domain
+          type: string
+          default: kube-demo-2026
+
+    - title: Git Destination
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
+  # Sequential actions executed by Backstage Scaffolder
+  steps:
+    # 1. Fetch files from skeleton/ and render Nunjucks variables (${{ values... }})
+    - id: fetch-base
+      name: Rendering Template
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          component_id: ${{ parameters.component_id }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          destinationOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+
+    # 2. Publish code including .github/workflows/ci.yml to GitHub
+    - id: publish-git
+      name: Publishing Repository
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        description: ${{ parameters.description }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+        repoVisibility: public
+
+    # 3. Register the new catalog-info.yaml directly in the Backstage Catalog
+    - id: register-catalog
+      name: Registering in Backstage
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish-git'].output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  # Links displayed in the UI after completion
+  output:
+    links:
+      - title: Open Git Repository
+        url: ${{ steps['publish-git'].output.remoteUrl }}
+      - title: View in Backstage Catalog
+        icon: catalog
+        entityRef: ${{ steps['register-catalog'].output.entityRef }}

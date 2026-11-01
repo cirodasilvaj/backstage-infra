@@ -1,0 +1,64 @@
+name: CI & Quality Gate
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  qa-and-security:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scanner
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ '${{ secrets.SONAR_TOKEN }}' }}
+          SONAR_HOST_URL: ${{ '${{ secrets.SONAR_HOST_URL }}' }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ values.component_id }}
+            -Dsonar.projectName=${{ values.component_id }}
+
+      - name: SonarQube Quality Gate Check
+        uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ '${{ secrets.SONAR_TOKEN }}' }}
+
+  deploy:
+    name: Deploy to Kubernetes
+    needs: qa-and-security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        if: ${{ "${{ github.event_name != 'pull_request' }}" }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ '${{ github.actor }}' }}
+          password: ${{ '${{ secrets.GITHUB_TOKEN }}' }}
+
+      - name: Build & Push Container Image (with Prometheus /metrics & Fluentd JSON Logs)
+        if: ${{ "${{ github.event_name != 'pull_request' }}" }}
+        run: |
+          IMAGE="ghcr.io/${{ values.destinationOwner }}/${{ values.component_id }}:latest"
+          docker build -t "${IMAGE}" .
+          docker push "${IMAGE}"
+
+      - name: Deploy Step
+        run: echo "Quality Gate approved! Starting deployment of ${{ values.component_id }} (Prometheus + Fluentd -> Loki enabled)..."
