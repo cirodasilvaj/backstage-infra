@@ -1,3 +1,541 @@
+# Developer Onboarding Roadmap & Workflow Guide (Backstage IDP)
+
+<div align="center">
+
+[![Translate to Portuguese](https://img.shields.io/badge/Traduzir%20para-Portugu%C3%AAs-009c3b?style=for-the-badge&logo=google-translate&logoColor=white)](https://translate.google.com/translate?sl=en&tl=pt&u=https://github.com/cirodasilvaj/backstage-infra/blob/main/DEVELOPER-ONBOARDING-ROADMAP.md)
+[![Backstage Version](https://img.shields.io/badge/Backstage-v1.30+-white?style=for-the-badge&logo=backstage&logoColor=blue)](https://backstage.io/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-EKS%201.30-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://aws.amazon.com/eks/)
+[![ArgoCD](https://img.shields.io/badge/GitOps-ArgoCD-orange?style=for-the-badge&logo=argo&logoColor=white)](https://argoproj.github.io/cd/)
+[![SonarQube](https://img.shields.io/badge/Security-SonarQube%20Quality%20Gate-4B9CD3?style=for-the-badge&logo=sonarqube&logoColor=white)](https://www.sonarqube.org/)
+
+[ 🇺🇸 English Version (Active) ] &nbsp;|&nbsp; [ 🇧🇷 Versão em Português (Traduzida abaixo) ](#-versão-completa-em-português)
+
+</div>
+
+> 🌐 **Language Switcher / Alternador de Idioma:**  
+> * **English (Default):** This document is officially written in English.  
+> * **Português:** Click the **"Traduzir para Português"** badge above to translate via Google Translate, or scroll down to the [🇧🇷 Versão Completa em Português](#-versão-completa-em-português) section at the bottom for the native Portuguese version.
+
+---
+
+Welcome to our enterprise platform engineering ecosystem! This guide provides a deterministic, step-by-step walkthrough for **developers (DEVs)** to onboard applications into the **Backstage Internal Developer Portal (IDP)**, satisfy observability standards (JSON logging and Prometheus metrics), adhere to code quality and SAST security controls (SonarQube Quality Gate), and seamlessly deploy microservices to the **Amazon EKS cluster** with **dynamic Route 53 DNS**, **ACM HTTPS TLS termination**, and **GitOps automation (ArgoCD)**.
+
+---
+
+## Table of Contents
+1. [Platform Overview & Access Endpoints](#1-platform-overview--access-endpoints)
+2. [Developer Onboarding Paths: New Service vs. Existing Service](#2-developer-onboarding-paths)
+   * [Option A: Create a New Service via Software Templates (Scaffolder - Recommended)](#option-a-create-a-new-service-via-software-templates-recommended)
+   * [Option B: Integrate an Existing Git Repository](#option-b-integrate-an-existing-git-repository)
+3. [Mandatory Application Production Readiness Requirements](#3-mandatory-application-production-readiness-requirements)
+   * [3.1 Structured JSON Logging (Fluentd -> Loki)](#31-structured-json-logging-fluentd---loki)
+   * [3.2 Prometheus Telemetry Metrics Exposition](#32-prometheus-telemetry-metrics-exposition)
+   * [3.3 Health Checks and Kubernetes Probes (Liveness & Readiness)](#33-health-checks-and-kubernetes-probes)
+   * [3.4 Mandatory Governance & FinOps Labels (CNCF Standards)](#34-mandatory-governance--finops-labels)
+   * [3.5 Code Quality & SAST Security (SonarQube Quality Gate)](#35-code-quality--sast-security-sonarqube-quality-gate)
+   * [3.6 Networking, Dynamic DNS & HTTPS (Route 53 & ACM)](#36-networking-dynamic-dns--https-acm)
+   * [3.7 Observability Strategy: Minimizing Dashboards (Backstage Single Pane of Glass + Grafana Dashboard-as-Code)](#37-observability-strategy-minimizing-dashboards-backstage--grafana-dashboard-as-code)
+4. [Complete Anatomy of `catalog-info.yaml`](#4-complete-anatomy-of-catalog-infoyaml)
+5. [Complete Skeleton Directory Inventory](#5-complete-skeleton-directory-inventory)
+6. [Developer Definition of Done (DoD) Checklist](#6-developer-definition-of-done-dod-checklist)
+7. [🇧🇷 Versão Completa em Português](#-versão-completa-em-português)
+
+---
+
+## 1. Platform Overview & Access Endpoints
+
+**Backstage** serves as your Internal Developer Portal (IDP). Through it, software engineers gain single-pane-of-glass access to:
+* **Software Catalog:** Unified discovery of all services, squad ownership, APIs, and dependencies.
+* **TechDocs:** Centralized technical documentation written in Markdown alongside your source code.
+* **Observability Plugins:** Embedded Grafana dashboards and Prometheus metrics cards directly on your service entity page.
+* **Security & Quality:** Live SonarQube SAST vulnerability scans, code smells, and unit test code coverage.
+* **GitOps & Kubernetes:** Real-time pod lifecycle visibility on Amazon EKS synchronized via ArgoCD.
+
+> **Platform Web UI Endpoints:**
+> * **Backstage Portal:** `https://backstage.<lab-id>.realhandsonlabs.net` (or `http://...:7007`)
+> * **SonarQube QA:** `https://sonarqube.<lab-id>.realhandsonlabs.net` (or `http://...:9000`)
+> * **Grafana Observability:** `https://grafana.<lab-id>.realhandsonlabs.net` (or `http://...:3000`)
+> * **ArgoCD GitOps:** `https://argocd.<lab-id>.realhandsonlabs.net` (or `http://...:8080`)
+>
+> 🔒 **Single Source of Truth for Platform Credentials (AWS SSM Parameter Store):**  
+> In compliance with strict enterprise security governance, plaintext credentials are never stored in markdown files or printed into pipeline artifacts. All access credentials for developers and operators are consolidated and encrypted in a single AWS Systems Manager Parameter Store resource:
+> * **Parameter Name:** `/kube-demo-2026/platform/credentials`
+> * **Parameter ARN:** `arn:aws:ssm:us-east-1:<AWS_ACCOUNT_ID>:parameter/kube-demo-2026/platform/credentials`
+> * **Type:** `SecureString` (AWS KMS Encrypted)
+>
+> **Command to retrieve credentials via AWS CLI:**
+> ```bash
+> aws ssm get-parameter \
+>   --name "/kube-demo-2026/platform/credentials" \
+>   --with-decryption \
+>   --query "Parameter.Value" \
+>   --output text | jq .
+> ```
+
+---
+
+## 2. Developer Onboarding Paths
+
+```mermaid
+flowchart TD
+    START([Developer wants to run a service]) --> CHOICE{New service or existing codebase?}
+    
+    CHOICE -->|New Service| TEMPLATE[Open Backstage -> Click 'Create...']
+    TEMPLATE --> SELECT_TPL[Choose Software Template:\nPython, .NET, Spring Boot, Node.js, or Go]
+    SELECT_TPL --> FILL_FORM[Fill in: Service Name, Squad, GitHub Repo]
+    FILL_FORM --> AUTO_GEN[Backstage Scaffolder provisions:\nGit Repo, CI/CD, K8s Manifests, Grafana Dashboard & Catalog Entry]
+    
+    CHOICE -->|Existing Codebase| PREP_APP[Adapt Service to Platform Standards]
+    PREP_APP --> ADD_LOGS[1. Add Structured JSON Logging]
+    PREP_APP --> ADD_METRICS[2. Expose /metrics Endpoint]
+    PREP_APP --> ADD_PROBES[3. Add /healthz Probes]
+    PREP_APP --> ADD_CATALOG[4. Create catalog-info.yaml in root]
+    ADD_CATALOG --> REGISTER[Backstage -> 'Register Existing Component']
+    
+    AUTO_GEN --> PUSH_CODE[Git Push / Merge to main]
+    REGISTER --> PUSH_CODE
+    
+    PUSH_CODE --> GHA[GitHub Actions: Tests + SonarQube Quality Gate + Container Build + Grafana Provisioning]
+    GHA --> ARGOCD[ArgoCD GitOps Sync to Amazon EKS]
+    ARGOCD --> DEPLOY[Pod Running + Route 53 Dynamic DNS + ACM HTTPS]
+    DEPLOY --> LIVE[Service Live at https://your-service.realhandsonlabs.net]
+```
+
+### Option A: Create a New Service via Software Templates (Recommended)
+
+When scaffolding a brand-new microservice, **use the Backstage Scaffolder Templates**:
+1. Log in to Backstage and click **Create...** on the left navigation sidebar.
+2. Select your desired runtime skeleton:
+   * **Python 3.12 Flask:** Comes preconfigured with Gunicorn, `pytest-cov`, `/metrics`, and Fluentd JSON logging.
+   * **.NET 8 C# Web API:** Comes preconfigured with ASP.NET Core, OpenTelemetry, `/healthz`, and xUnit.
+   * **JVM Spring Boot 3.3:** Comes preconfigured with Spring Actuator, Micrometer, Maven, and Logback JSON.
+   * **Node.js 20 Express:** Comes preconfigured with `prom-client`, Winston JSON logging, and Jest.
+   * **Microservice Core (Polyglot):** Standard cloud-native skeleton with health probes and telemetry.
+3. Fill in the parameters:
+   * **Service Name:** Unique kebab-case identifier (e.g., `payment-service`).
+   * **Responsible Team:** Owning squad (e.g., `squad-checkout`).
+   * **Git Destination:** Choose the GitHub organization and target repository name.
+4. Click **Create**. In less than 30 seconds, Backstage provisions the entire repository with turnkey production readiness:
+   * **Source Code:** Application boilerplate with `/metrics`, `/healthz`, and structured JSON logging for Fluentd/Loki.
+   * **CI/CD Workflow (`.github/workflows/ci.yml`):** Runs unit tests, coverage reports, SonarQube scanning, Quality Gate enforcement, container image build & push to GitHub Container Registry (`ghcr.io`), and automatic Grafana dashboard provisioning via API.
+   * **Dashboard-as-Code (`grafana/dashboard.json`):** Dedicated Grafana dashboard preconfigured with Golden Signals (RPS, 5xx Error %, p99 Latency, Uptime, Loki logs).
+   * **GitOps ArgoCD (`k8s/argo-application.yaml`):** Declarative ArgoCD `Application` resource for automated continuous deployment.
+   * **Kubernetes Manifests (`k8s/deployment.yaml` & `k8s/service-external.yaml`):** Deployment with FinOps/CNCF labels, ClusterIP internal Service, and LoadBalancer external Service with port 80 and 443 (ACM HTTPS).
+   * **Dynamic DNS Script (`scripts/sync-dns-route53.sh`):** Automates Route 53 CNAME record creation bound to the EKS LoadBalancer.
+   * **Backstage Catalog Entity (`catalog-info.yaml`):** Immediate catalog indexing linking GitHub, SonarQube, Kubernetes, and Grafana.
+
+---
+
+### Option B: Integrate an Existing Git Repository
+
+If you have an existing application repository:
+1. Verify that your service satisfies the [Mandatory Requirements in Section 3](#3-mandatory-application-production-readiness-requirements).
+2. Add a `catalog-info.yaml` file to the root of your repository (following the schema in [Section 4](#4-complete-anatomy-of-catalog-infoyaml)).
+3. In Backstage, open **Catalog** -> click **Register Existing Component**.
+4. Paste the URL of your repository's `catalog-info.yaml` (e.g., `https://github.com/cirodasilvaj/my-repo/blob/main/catalog-info.yaml`).
+5. Click **Analyze** and then **Import**.
+
+---
+
+## 3. Mandatory Application Production Readiness Requirements
+
+To ensure stability, security, FinOps governance, and observability in the Amazon EKS cluster, all workloads must adhere to the 7 core requirements:
+
+### 3.1 Structured JSON Logging (Fluentd -> Loki)
+In Kubernetes, logs **must never** be written to local files inside containers. Applications must emit logs directly to `stdout` (informational) and `stderr` (errors) formatted as **structured JSON** for automated ingestion by the **Fluentd DaemonSet** and indexing in **Grafana Loki**.
+
+#### Required JSON Log Schema:
+```json
+{
+  "timestamp": "2026-11-01T12:00:00.123Z",
+  "level": "INFO",
+  "service": "payment-service",
+  "message": "Payment transaction processed successfully",
+  "http_method": "POST",
+  "endpoint": "/api/v1/payments",
+  "status_code": 200,
+  "duration_ms": 42.5,
+  "client_ip": "10.0.10.45",
+  "trace_id": "a1b2c3d4e5f6"
+}
+```
+
+#### Python 3.12 Example (Flask):
+```python
+import logging
+import json
+from datetime import datetime, timezone
+from flask import Flask
+
+app = Flask(__name__)
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "service": "payment-service",
+            "message": record.getMessage()
+        }
+        return json.dumps(log_entry)
+
+handler = logging.StreamHandler()
+handler.setFormatter(JsonFormatter())
+app.logger.handlers = [handler]
+app.logger.setLevel(logging.INFO)
+```
+
+#### .NET 8 Example (C# `appsettings.json`):
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    },
+    "Console": {
+      "FormatterName": "json",
+      "FormatterOptions": {
+        "TimestampFormat": "yyyy-MM-ddTHH:mm:ssZ"
+      }
+    }
+  }
+}
+```
+
+#### Pod Metadata Annotations (`k8s/deployment.yaml`):
+```yaml
+spec:
+  template:
+    metadata:
+      annotations:
+        fluentd.io/collect: "true"
+        fluentd.io/parser: "json"
+        fluentd.io/destination: "loki"
+```
+
+---
+
+### 3.2 Prometheus Telemetry Metrics Exposition
+The EKS cluster runs Prometheus Community (Helm v25.27.0). Services must expose `/metrics` in standard Prometheus text format.
+
+#### Python Example (`prometheus_client`):
+```python
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from flask import Response
+
+REQUEST_COUNT = Counter('app_http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status'])
+REQUEST_LATENCY = Histogram('http_request_duration_seconds', 'HTTP request latency in seconds', ['endpoint'])
+
+@app.route('/metrics')
+def metrics():
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+```
+
+#### .NET 8 Example (`Program.cs`):
+```csharp
+// Package: dotnet add package prometheus-net.AspNetCore
+using Prometheus;
+
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+
+app.UseMetricServer(); // Exposes /metrics automatically
+app.UseHttpMetrics();  // Captures HTTP request rates and latencies automatically
+app.Run();
+```
+
+#### Pod Auto-Scraping Annotations:
+```yaml
+spec:
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+```
+
+---
+
+### 3.3 Health Checks and Kubernetes Probes
+Kubernetes relies on probes to monitor container health and manage traffic routing:
+* **Liveness Probe (`/healthz`):** Verifies the application process is alive. If this probe fails, Kubernetes restarts the pod.
+* **Readiness Probe (`/ready` or `/healthz`):** Verifies the application is ready to accept user requests (database connections established, caches initialized). If this probe fails, the pod is removed from endpoints until healthy.
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 15
+```
+
+---
+
+### 3.4 Mandatory Governance & FinOps Labels
+Every Kubernetes manifest (`Namespace`, `Deployment`, `Service`, `Ingress`) **must strictly include** the following enterprise metadata labels:
+
+```yaml
+metadata:
+  labels:
+    app.kubernetes.io/name: "payment-service"
+    app.kubernetes.io/instance: "payment-service-prod"
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: "backend-api"
+    app.kubernetes.io/part-of: "kube-demo-2026"
+    app.kubernetes.io/managed-by: "argocd"
+    app.kubernetes.io/created-by: "backstage-scaffolder"
+    environment: "sandbox"
+    cost-center: "devops-platform-cloud"
+    cloud-provider: "aws"
+    source-project: "payment-service"
+    owner: "squad-checkout"
+    backstage.io/kubernetes-id: "payment-service"
+```
+
+---
+
+### 3.5 Code Quality & SAST Security (SonarQube Quality Gate)
+Every CI execution on GitHub Actions triggers a SonarQube analysis. If the Quality Gate is not passed, deployment is blocked.
+
+#### Configuration File `sonar-project.properties` (Repository Root):
+```properties
+sonar.projectKey=squad-checkout:payment-service
+sonar.projectName=Payment Service API
+sonar.sources=src,app
+sonar.tests=tests
+sonar.sourceEncoding=UTF-8
+sonar.python.coverage.reportPaths=coverage.xml
+# For .NET: sonar.cs.opencover.reportsPaths=**/coverage.opencover.xml
+```
+
+#### Quality Gate Criteria:
+* **0** Critical or Blocker Vulnerabilities.
+* **0** Unreviewed Security Hotspots.
+* **>= 80%** Code Coverage on new code.
+* Maintainability Rating **A** (low technical debt and duplication).
+
+---
+
+### 3.6 Networking, Dynamic DNS & HTTPS (ACM)
+1. **Service LoadBalancer:** When external access is required, deploy an internet-facing Service or Ingress.
+2. **Dynamic DNS Delegation:** The Route 53 synchronization script maps your LoadBalancer hostname to:
+   ```
+   https://<service-name>.<lab-id>.realhandsonlabs.net
+   ```
+3. **HTTPS TLS Termination:** An AWS Certificate Manager (ACM) Wildcard SSL certificate (`*.<lab-id>.realhandsonlabs.net`) is provisioned. To enable HTTPS termination on port 443:
+   ```yaml
+   metadata:
+     annotations:
+       service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:us-east-1:<ACCOUNT_ID>:certificate/<ID>"
+       service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+       service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+   ```
+
+---
+
+### 3.7 Observability Strategy: Minimizing Dashboards (Backstage + Grafana Dashboard-as-Code)
+
+#### Philosophy: "Single Pane of Glass" vs Dashboard Sprawl
+To prevent metric fatigue and unmaintained panels, the platform enforces a strict separation of concerns:
+* **Backstage (Developer Daily Driver):** Single Pane of Glass consolidating source code, TechDocs, Kubernetes pod health, and an embedded **Golden Signals Card** (Throughput/RPS, 5xx Error %, p99 Latency, and Loki live error logs).
+* **Grafana (Deep Dive & Incident Diagnostics):** Underlying rendering engine. Developers click *"Open in Grafana"* from Backstage when they need to run ad-hoc PromQL/LogQL queries or timeline zoom.
+
+```mermaid
+flowchart TD
+    DEV([Developer]) -->|Fills Scaffolder Form| SCAFFOLDER[Backstage Scaffolder]
+    
+    subgraph AUTO["Dashboard-as-Code Automation"]
+        SCAFFOLDER -->|1. Renders App Code| REPO[Git Repository]
+        SCAFFOLDER -->|2. Renders dashboard.json| DASH[dashboards/grafana-dashboard.json]
+        SCAFFOLDER -->|3. Renders catalog-info.yaml| CAT[catalog-info.yaml with Grafana Tags]
+    end
+    
+    REPO & DASH & CAT -->|Commit & Push| GIT[(GitHub / GitLab)]
+    
+    GIT -->|CI/CD Pipeline REST API or GitOps Sidecar| PROV[Dashboard Provisioner]
+    PROV -->|Registers Dashboard| GRAFANA[(Grafana Engine)]
+    
+    GRAFANA -.->|Plugin API / Embedded View| BACKSTAGE[Backstage Portal / EntityPage]
+    BACKSTAGE -->|Single Pane of Glass View| DEV
+```
+
+#### Skeleton Dashboard JSON Template (`grafana/dashboard.json`):
+```json
+{
+  "overwrite": true,
+  "dashboard": {
+    "uid": "${{ values.component_id }}-dashboard",
+    "title": "${{ values.component_id }} - Operational Overview",
+    "tags": ["service:${{ values.component_id }}", "automated", "gold-signals"],
+    "editable": false,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Throughput / Request Rate (RPS)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{app="${{ values.component_id }}"}[1m]))",
+            "legendFormat": "RPS"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Error Rate (HTTP 5xx %)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{app="${{ values.component_id }}",status=~"5.."}[1m])) / sum(rate(http_requests_total{app="${{ values.component_id }}"}[1m])) * 100",
+            "legendFormat": "5xx Error %"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Latency p99 (Milliseconds)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{app="${{ values.component_id }}"}[1m])) by (le)) * 1000",
+            "legendFormat": "p99 (ms)"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Real-time Error Logs (Loki)",
+        "type": "logs",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "{app="${{ values.component_id }}"} |= "error"",
+            "queryType": "range"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 4. Complete Anatomy of `catalog-info.yaml`
+
+The `catalog-info.yaml` file residing in your repository's root teaches Backstage how to catalog, visualize, and monitor your service:
+
+```yaml
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: payment-service
+  title: Payment Processing Service
+  description: Microservice handling payment checkout transactions and billing workflows
+  tags:
+    - python
+    - flask
+    - payments
+    - financial
+  annotations:
+    # Links GitHub repository for commits, PRs, and contributors
+    github.com/project-slug: cirodasilvaj/payment-service
+    
+    # Links TechDocs generated from the /docs folder
+    backstage.io/techdocs-ref: dir:.
+    
+    # Links SonarQube SAST analysis and Quality Gate status
+    sonarqube.org/project-key: squad-checkout:payment-service
+    
+    # Links Kubernetes Pods on Amazon EKS
+    backstage.io/kubernetes-id: payment-service
+    backstage.io/kubernetes-namespace: apps-demo
+    
+    # Links Prometheus metric alerts
+    prometheus.io/rule: payment_service_http_requests_total
+    
+    # Links auto-provisioned Grafana dashboards
+    grafana/dashboard-selector: "payment-service"
+    grafana/tag-selector: "service:payment-service"
+    
+    # Links GitOps synchronization in ArgoCD
+    argocd/app-name: payment-service
+
+spec:
+  type: service
+  lifecycle: production
+  owner: group:squad-checkout
+  system: kube-demo-2026
+  providesApis:
+    - payment-api
+  dependsOn:
+    - resource:default/postgres-database
+```
+
+---
+
+## 5. Complete Skeleton Directory Inventory
+
+Every template in `backstage-infra/templates/` contains the full production skeleton:
+
+| File Path | Purpose |
+| :--- | :--- |
+| `src/` / `app.py` / `Program.cs` | Application source code with `/metrics`, `/healthz`, and JSON logging. |
+| `Dockerfile` | Multi-stage, minimal attack-surface container build. |
+| `catalog-info.yaml` | Backstage component declaration with cross-plugin annotations. |
+| `sonar-project.properties` | SonarQube scanner properties and test coverage paths. |
+| `.github/workflows/ci.yml` | Full CI/CD: unit tests, SonarQube Quality Gate, GHCR container push, Grafana API dashboard provisioning. |
+| `grafana/dashboard.json` | Dynamic Dashboard-as-Code JSON template with Golden Signals. |
+| `k8s/deployment.yaml` | Kubernetes Deployment with CNCF/FinOps governance labels + internal ClusterIP Service. |
+| `k8s/service-external.yaml` | External LoadBalancer Service with port 80 and 443 (ACM HTTPS SSL). |
+| `k8s/argo-application.yaml` | Declarative ArgoCD GitOps Application manifest for continuous deployment. |
+| `scripts/sync-dns-route53.sh` | Route 53 dynamic DNS registration script. |
+
+---
+
+## 6. Developer Definition of Done (DoD) Checklist
+
+Before promoting your microservice to production, ensure every requirement is met:
+
+- [ ] **Scaffolding:** Service created via Backstage Software Template or adheres to Dockerfile best practices.
+- [ ] **Logging:** Logs emitted in structured JSON to `stdout`/`stderr` with pod metadata annotations.
+- [ ] **Metrics:** Route `/metrics` operational and annotated for Prometheus scraping.
+- [ ] **Health Checks:** Probes `/healthz` and `/ready` configured and responding HTTP 200.
+- [ ] **Unit Tests:** Automated tests passing with >= 80% code coverage.
+- [ ] **SonarQube:** Scanner passing with green Quality Gate (0 blockers, 0 security hotspots).
+- [ ] **Container Image:** Container built and published to GitHub Container Registry (`ghcr.io`).
+- [ ] **Catalog Entity:** `catalog-info.yaml` committed at repository root with all annotations.
+- [ ] **TechDocs:** Directory `docs/` created with `mkdocs.yml` for technical documentation.
+- [ ] **GitOps:** `argo-application.yaml` configured and synced in ArgoCD.
+- [ ] **DNS & HTTPS:** Service accessible via `https://<service-name>.<lab-id>.realhandsonlabs.net`.
+- [ ] **FinOps Governance:** Mandatory labels (`cost-center`, `environment`, `owner`) present on all K8s manifests.
+
+---
+
+> 💡 **Need Support or Guidance?**  
+> Reach out to the Platform Engineering team via Slack/Discord or open an issue in the [`cirodasilvaj/backstage-infra`](https://github.com/cirodasilvaj/backstage-infra) repository.
+
+---
+
+## 7. 🇧🇷 Versão Completa em Português
+
+<details>
+<summary><b>👉 Clique aqui para expandir a documentação completa em Português (Brasil) / Click to expand full Portuguese documentation</b></summary>
+
+<br/>
+
 # Roadmap & Guia de Onboarding do Desenvolvedor no Backstage
 
 Bem-vindo à plataforma de engenharia de software corporativa! Este guia fornece o passo a passo completo para você, **desenvolvedor (DEV)**, fazer o onboarding da sua aplicação no **Backstage**, atender aos requisitos de observabilidade (logs e métricas), segurança de código (SonarQube) e colocar sua aplicação no ar no cluster **Amazon EKS** com **HTTPS** e **DNS dinâmico**.
@@ -648,3 +1186,5 @@ Antes de considerar sua aplicação pronta para produção, valide cada item:
 
 > 💡 **Dúvidas ou Suporte?**  
 > Procure a equipe de plataforma no Slack/Discord ou abra uma issue no repositório [`cirodasilvaj/backstage-infra`](https://github.com/cirodasilvaj/backstage-infra).
+
+</details>
