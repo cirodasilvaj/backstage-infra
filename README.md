@@ -1,5 +1,8 @@
 # backstage-infra
 
+> 🚀 **Developer Onboarding & Application Readiness Roadmap:**  
+> Are you a developer wanting to deploy your application to Backstage? See [**`DEVELOPER-ONBOARDING-ROADMAP.md`**](DEVELOPER-ONBOARDING-ROADMAP.md) for step-by-step instructions on creating services from Software Templates (Scaffolder), configuring structured JSON logs, exposing Prometheus `/metrics`, setting up Kubernetes health probes (`/healthz` and `/ready`), SonarQube quality gates, and `catalog-info.yaml`.
+
 Backstage.io + ArgoCD + Grafana + Fluentd on top of the EKS cluster already
 provisioned by [`kube-demo-2026`](https://github.com/cirobessa/kube-demo-2026)
 (the `eks/` module there — cluster name `kube-demo-eks`, region
