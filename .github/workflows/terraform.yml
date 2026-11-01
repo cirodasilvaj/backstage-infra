@@ -121,9 +121,9 @@ jobs:
         run: |
           kubectl apply -f ../k8s-manifests/backstage/
           kubectl apply -f ../k8s-manifests/sonarqube/
+          kubectl delete deployment grafana-metrics -n grafana --ignore-not-found || true
           kubectl apply -f ../k8s-manifests/grafana/
-          kubectl rollout restart deployment/grafana -n grafana || true
-          kubectl rollout restart deployment/grafana-metrics -n grafana || true
+          kubectl rollout status deployment/grafana-metrics -n grafana --timeout=120s || true
           kubectl rollout restart deployment/backstage -n backstage
           kubectl rollout status deployment/backstage -n backstage --timeout=180s || true
           terraform output

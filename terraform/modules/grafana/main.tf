@@ -244,6 +244,7 @@ resource "helm_release" "grafana" {
 
   values = [
     yamlencode({
+      replicas = 0
       service = {
         type = "ClusterIP"
       }
@@ -360,7 +361,7 @@ resource "kubernetes_service" "grafana_external" {
     type = "LoadBalancer"
 
     selector = {
-      "app.kubernetes.io/name" = "grafana"
+      "app.kubernetes.io/name" = "grafana-metrics"
     }
 
     port {

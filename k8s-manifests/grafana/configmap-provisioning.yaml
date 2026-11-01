@@ -4,7 +4,7 @@ metadata:
   name: grafana-prometheus-provisioning
   namespace: grafana
   labels:
-    app.kubernetes.io/name: grafana
+    app.kubernetes.io/name: grafana-metrics
 data:
   datasources.yaml: |
     apiVersion: 1
@@ -37,18 +37,18 @@ data:
         editable: true
         options:
           path: /etc/grafana/provisioning/dashboards/json
-  eks-overview.json: |
+  apps-prometheus-loki.json: |
     {
-      "title": "1. Apps Demo, ArgoCD & SonarQube - Metrics (Prometheus) & Logs (Fluentd -> Loki)",
-      "uid": "eks-prometheus-overview",
+      "uid": "apps-prometheus-loki",
+      "title": "1. Apps Demo - Prometheus Metrics & Fluentd/Loki Logs",
       "timezone": "browser",
       "schemaVersion": 39,
-      "version": 2,
+      "version": 1,
       "refresh": "15s",
       "panels": [
         {
           "id": 1,
-          "title": "Apps Demo HTTP Requests Total (Prometheus /metrics)",
+          "title": "App HTTP Requests Total (Prometheus /metrics)",
           "type": "timeseries",
           "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
@@ -61,22 +61,138 @@ data:
         },
         {
           "id": 2,
-          "title": "ArgoCD Applications & Pods CPU Usage (Prometheus)",
+          "title": "Apps Demo Pods CPU Usage (Prometheus)",
           "type": "timeseries",
           "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
           "targets": [
             {
-              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=~\"argocd|apps-demo\",container!=\"\"}[5m]))",
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"apps-demo\",container!=\"\"}[5m]))",
               "legendFormat": "{{pod}}"
             }
           ]
         },
         {
           "id": 3,
-          "title": "Fluentd -> Loki Log Volume by Namespace (5m)",
+          "title": "Apps Demo Pods Memory Usage (Prometheus)",
           "type": "timeseries",
           "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
+          "targets": [
+            {
+              "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"apps-demo\",container!=\"\"})",
+              "legendFormat": "{{pod}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Apps Demo Live Logs (Shipped by Fluentd -> Loki)",
+          "type": "logs",
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 7 },
+          "datasource": { "type": "loki", "uid": "loki-eks" },
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "expr": "{namespace=\"apps-demo\"}"
+            }
+          ]
+        }
+      ]
+    }
+  argocd-prometheus-loki.json: |
+    {
+      "uid": "argocd-prometheus-loki",
+      "title": "2. ArgoCD GitOps - Prometheus Metrics & Fluentd/Loki Logs",
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "15s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "ArgoCD Applications & Pods Info (Prometheus)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
+          "targets": [
+            {
+              "expr": "sum by (name, health_status, sync_status) (argocd_app_info)",
+              "legendFormat": "{{name}} ({{sync_status}} / {{health_status}})"
+            },
+            {
+              "expr": "count by (pod) (kube_pod_info{namespace=\"argocd\"})",
+              "legendFormat": "pod: {{pod}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "ArgoCD Controller & Server CPU Usage (Prometheus)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
+          "targets": [
+            {
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"argocd\",container!=\"\"}[5m]))",
+              "legendFormat": "{{pod}}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "ArgoCD Memory Working Set (Prometheus)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus-eks" },
+          "targets": [
+            {
+              "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"argocd\",container!=\"\"})",
+              "legendFormat": "{{pod}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "ArgoCD Live Logs (Shipped by Fluentd -> Loki)",
+          "type": "logs",
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 7 },
+          "datasource": { "type": "loki", "uid": "loki-eks" },
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "expr": "{namespace=\"argocd\"}"
+            }
+          ]
+        }
+      ]
+    }
+  sonarqube-argocd-loki-logs.json: |
+    {
+      "uid": "sonarqube-argocd-loki-logs",
+      "title": "3. SonarQube, ArgoCD & Apps - Fluentd to Loki Central Logs",
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "15s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Fluentd -> Loki Log Volume by Namespace (5m)",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
           "datasource": { "type": "loki", "uid": "loki-eks" },
           "targets": [
             {
@@ -86,26 +202,59 @@ data:
           ]
         },
         {
-          "id": 4,
-          "title": "Apps Demo Live Logs (Fluentd -> Loki)",
+          "id": 2,
+          "title": "SonarQube QA & Security Logs (Fluentd -> Loki)",
           "type": "logs",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
           "datasource": { "type": "loki", "uid": "loki-eks" },
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          },
           "targets": [
             {
-              "expr": "{namespace=\"apps-demo\"}"
+              "expr": "{namespace=\"sonarqube\"}"
             }
           ]
         },
         {
-          "id": 5,
-          "title": "SonarQube & ArgoCD Live Logs (Fluentd -> Loki)",
+          "id": 3,
+          "title": "ArgoCD GitOps Logs (Fluentd -> Loki)",
           "type": "logs",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
           "datasource": { "type": "loki", "uid": "loki-eks" },
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          },
           "targets": [
             {
-              "expr": "{namespace=~\"sonarqube|argocd\"}"
+              "expr": "{namespace=\"argocd\"}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "All Platform & App Logs (apps-demo, sonarqube, argocd, backstage)",
+          "type": "logs",
+          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 15 },
+          "datasource": { "type": "loki", "uid": "loki-eks" },
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "expr": "{namespace=~\"apps-demo|sonarqube|argocd|backstage\"}"
             }
           ]
         }
