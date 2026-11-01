@@ -5,6 +5,17 @@ metadata:
   namespace: apps-demo
   labels:
     app.kubernetes.io/name: ${{ values.component_id }}
+    app.kubernetes.io/instance: ${{ values.component_id }}-prod
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: backend-api
+    app.kubernetes.io/part-of: ${{ values.system }}
+    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/created-by: backstage-scaffolder
+    environment: sandbox
+    cost-center: devops-platform-cloud
+    cloud-provider: aws
+    source-project: ${{ values.component_id }}
+    owner: ${{ values.owner }}
     backstage.io/kubernetes-id: ${{ values.component_id }}
 spec:
   replicas: 1
@@ -15,6 +26,10 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: ${{ values.component_id }}
+        app.kubernetes.io/instance: ${{ values.component_id }}-prod
+        app.kubernetes.io/component: backend-api
+        environment: sandbox
+        owner: ${{ values.owner }}
         backstage.io/kubernetes-id: ${{ values.component_id }}
       annotations:
         prometheus.io/scrape: "true"
@@ -41,6 +56,14 @@ spec:
             httpGet:
               path: /healthz
               port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
           resources:
             requests:
               cpu: 50m
@@ -56,6 +79,12 @@ metadata:
   namespace: apps-demo
   labels:
     app.kubernetes.io/name: ${{ values.component_id }}
+    app.kubernetes.io/part-of: ${{ values.system }}
+    app.kubernetes.io/managed-by: argocd
+    environment: sandbox
+    cost-center: devops-platform-cloud
+    cloud-provider: aws
+    owner: ${{ values.owner }}
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"

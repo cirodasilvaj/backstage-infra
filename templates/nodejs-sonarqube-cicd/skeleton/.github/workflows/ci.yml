@@ -1,4 +1,4 @@
-name: CI & Quality Gate (Node.js)
+name: CI & Quality Gate
 
 on:
   push:
@@ -7,9 +7,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   qa-and-security:
-    name: Node.js QA Tests & SonarQube Scan
+    name: SonarQube Scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -20,10 +24,13 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
+          cache: 'npm'
 
-      - name: Run Built-in Node.js QA Tests
-        run: npm test
+      - name: Install Dependencies & Run Tests with Coverage
+        run: |
+          npm ci
+          npm test -- --coverage
 
       - name: SonarQube Scanner
         uses: SonarSource/sonarqube-scan-action@master
@@ -34,7 +41,6 @@ jobs:
           args: >
             -Dsonar.projectKey=${{ values.component_id }}
             -Dsonar.projectName=${{ values.component_id }}
-            -Dsonar.sources=server.js
 
       - name: SonarQube Quality Gate Check
         uses: SonarSource/sonarqube-quality-gate-action@master
@@ -42,26 +48,46 @@ jobs:
         env:
           SONAR_TOKEN: ${{ '${{ secrets.SONAR_TOKEN }}' }}
 
-  deploy:
-    name: Deploy to Kubernetes & Provision Grafana Dashboard
+  build-and-deploy:
+    name: Build Container & Provision ArgoCD / Grafana
     needs: qa-and-security
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Provision Service Dashboard in Grafana (Prometheus + Fluentd/Loki)
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ '${{ github.actor }}' }}
+          password: ${{ '${{ secrets.GITHUB_TOKEN }}' }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ values.destinationOwner }}/${{ values.component_id }}:latest
+            ghcr.io/${{ values.destinationOwner }}/${{ values.component_id }}:${{ '${{ github.sha }}' }}
+
+      - name: Provision Service Dashboard in Grafana (Dashboard-as-Code)
         env:
           GRAFANA_URL: ${{ '${{ secrets.GRAFANA_URL }}' }}
           GRAFANA_USER: ${{ "${{ secrets.GRAFANA_USER || 'admin' }}" }}
           GRAFANA_PASSWORD: ${{ "${{ secrets.GRAFANA_PASSWORD || 'Grafana@2026' }}" }}
         run: |
           if [ -n "${GRAFANA_URL}" ]; then
+            echo "📊 Provisioning ${{ values.component_id }} Grafana Dashboard..."
             curl -fsS -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
               -X POST "${GRAFANA_URL}/api/dashboards/db" \
               -H "Content-Type: application/json" \
-              -d @grafana/dashboard.json || true
+              -d @grafana/dashboard.json || echo "Grafana API unreachable or already provisioned."
           fi
 
-      - name: Deploy Step
-        run: echo "Quality Gate approved! Starting deployment of ${{ values.component_id }}..."
+      - name: Register / Sync ArgoCD Application
+        run: |
+          echo "🚀 Quality Gate approved and container image published!"
+          echo "ArgoCD Application manifest ready at k8s/argo-application.yaml"
