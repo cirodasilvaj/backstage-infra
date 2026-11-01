@@ -30,44 +30,40 @@ resource "helm_release" "argocd" {
     name  = "configs.params.server\\.insecure"
     value = "true"
   }
+}
 
-  # Enable ArgoCD Prometheus metrics for controller, server and repo-server
-  set {
-    name  = "controller.metrics.enabled"
-    value = "true"
+# Prometheus scrape Service for ArgoCD metrics (controller :8082 & server :8083)
+resource "kubernetes_service_v1" "argocd_metrics" {
+  metadata {
+    name      = "argocd-prometheus-metrics"
+    namespace = kubernetes_namespace.argocd.metadata[0].name
+    labels = {
+      "app.kubernetes.io/name"    = "argocd-metrics"
+      "app.kubernetes.io/part-of" = "argocd"
+    }
+    annotations = {
+      "prometheus.io/scrape" = "true"
+      "prometheus.io/port"   = "8082"
+      "prometheus.io/path"   = "/metrics"
+    }
   }
-  set {
-    name  = "controller.metrics.service.annotations.prometheus\\.io/scrape"
-    value = "true"
+
+  spec {
+    type = "ClusterIP"
+
+    selector = {
+      "app.kubernetes.io/name" = "argocd-application-controller"
+    }
+
+    port {
+      name        = "metrics"
+      port        = 8082
+      target_port = 8082
+      protocol    = "TCP"
+    }
   }
-  set {
-    name  = "controller.metrics.service.annotations.prometheus\\.io/port"
-    value = "8082"
-  }
-  set {
-    name  = "server.metrics.enabled"
-    value = "true"
-  }
-  set {
-    name  = "server.metrics.service.annotations.prometheus\\.io/scrape"
-    value = "true"
-  }
-  set {
-    name  = "server.metrics.service.annotations.prometheus\\.io/port"
-    value = "8083"
-  }
-  set {
-    name  = "repoServer.metrics.enabled"
-    value = "true"
-  }
-  set {
-    name  = "repoServer.metrics.service.annotations.prometheus\\.io/scrape"
-    value = "true"
-  }
-  set {
-    name  = "repoServer.metrics.service.annotations.prometheus\\.io/port"
-    value = "8084"
-  }
+
+  depends_on = [helm_release.argocd]
 }
 
 # External LoadBalancer service for demo access to the ArgoCD Web UI.
@@ -109,4 +105,3 @@ resource "kubernetes_service_v1" "argocd_external" {
 
   depends_on = [helm_release.argocd]
 }
-
