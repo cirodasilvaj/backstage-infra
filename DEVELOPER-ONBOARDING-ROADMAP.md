@@ -93,7 +93,14 @@ Se você está iniciando um novo microserviço, **use os Templates do Scaffolder
    * **Service Name:** Nome único em minúsculas (ex: `payment-service`).
    * **Responsible Team:** Nome da sua squad (ex: `squad-checkout`).
    * **Repository:** Selecione a organização e nome do repositório no GitHub.
-4. Clique em **Create**. Em menos de 30 segundos, o Backstage gerará o repositório no GitHub com pipeline de CI/CD, testes, Dockerfile, manifests Kubernetes e registrará o componente automaticamente no catálogo!
+4. Clique em **Create**. Em menos de 30 segundos, o Backstage gerará o repositório no GitHub com a estrutura completa e pronta para produção:
+   * **Código-fonte:** App na linguagem escolhida com endpoints `/metrics`, `/healthz` e logs estruturados em JSON para Fluentd/Loki.
+   * **Pipeline CI/CD (`.github/workflows/ci.yml`):** Executa testes unitários, cobertura, scanner do SonarQube, bloqueio por Quality Gate, build & push do container no GHCR e provisionamento automático do dashboard no Grafana via API.
+   * **Dashboard-as-Code (`grafana/dashboard.json`):** Painel do Grafana com os *Golden Signals* da aplicação (Throughput/RPS, Taxa de Erros 5xx, Latência p99, Uptime e Logs do Loki).
+   * **GitOps ArgoCD (`k8s/argo-application.yaml`):** Manifesto do ArgoCD para sincronização e deploy automatizado no EKS.
+   * **Manifests Kubernetes (`k8s/deployment.yaml` e `k8s/service-external.yaml`):** Deployment com labels mandatórias de FinOps/CNCF, Service interno ClusterIP e Service LoadBalancer com portas 80 e 443 (HTTPS ACM).
+   * **DNS Dinâmico (`scripts/sync-dns-route53.sh`):** Script para mapeamento CNAME automático no Route 53 com o hostname do LoadBalancer.
+   * **Catálogo Backstage (`catalog-info.yaml`):** Registro imediato no catálogo do Backstage com todas as anotações (GitHub, SonarQube, Kubernetes e Grafana).
 
 ---
 
