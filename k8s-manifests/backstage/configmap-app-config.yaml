@@ -47,6 +47,10 @@ data:
         - type: url
           target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/catalog-info.yaml
         - type: url
+          target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/python-app/catalog-info.yaml
+        - type: url
+          target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/dotnet-csharp-app/catalog-info.yaml
+        - type: url
           target: https://github.com/cirodasilvaj/samba-ad-keycloak/blob/main/catalog-info.yaml
         - type: url
           target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/microservice-template/template.yaml
@@ -317,18 +321,18 @@ data:
         (
             'cccccccc-cccc-cccc-cccc-cccccccccccc',
             'component:default/python-demo-app',
-            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"python-demo-app","namespace":"default","description":"Python 3.12 Flask Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","backstage.io/kubernetes-id":"python-app","backstage.io/kubernetes-namespace":"apps-demo"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
-            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"python-demo-app","namespace":"default","description":"Python 3.12 Flask Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","backstage.io/kubernetes-id":"python-app","backstage.io/kubernetes-namespace":"apps-demo"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
-            'hash-python-demo-app-v1',
-            'hash-python-demo-app-v1'
+            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"python-demo-app","namespace":"default","description":"Python 3.12 Flask Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","sonarqube.org/project-key":"apps-demo-2026","backstage.io/kubernetes-id":"python-app","backstage.io/kubernetes-namespace":"apps-demo","prometheus.io/scrape":"true","prometheus.io/path":"/metrics","fluentd.io/destination":"loki","grafana/overview-dashboard":"d/apps-prometheus-loki/8c87aef"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
+            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"python-demo-app","namespace":"default","description":"Python 3.12 Flask Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","sonarqube.org/project-key":"apps-demo-2026","backstage.io/kubernetes-id":"python-app","backstage.io/kubernetes-namespace":"apps-demo","prometheus.io/scrape":"true","prometheus.io/path":"/metrics","fluentd.io/destination":"loki","grafana/overview-dashboard":"d/apps-prometheus-loki/8c87aef"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
+            'hash-python-demo-app-v2',
+            'hash-python-demo-app-v2'
         ),
         (
             'dddddddd-dddd-dddd-dddd-dddddddddddd',
             'component:default/dotnet-csharp-demo-app',
-            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"dotnet-csharp-demo-app","namespace":"default","description":"C# .NET 8 Minimal API Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","backstage.io/kubernetes-id":"dotnet-csharp-app","backstage.io/kubernetes-namespace":"apps-demo"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
-            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"dotnet-csharp-demo-app","namespace":"default","description":"C# .NET 8 Minimal API Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","backstage.io/kubernetes-id":"dotnet-csharp-app","backstage.io/kubernetes-namespace":"apps-demo"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
-            'hash-dotnet-csharp-demo-app-v1',
-            'hash-dotnet-csharp-demo-app-v1'
+            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"dotnet-csharp-demo-app","namespace":"default","description":"C# .NET 8 Minimal API Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","sonarqube.org/project-key":"apps-demo-2026","backstage.io/kubernetes-id":"dotnet-csharp-app","backstage.io/kubernetes-namespace":"apps-demo","prometheus.io/scrape":"true","prometheus.io/path":"/metrics","fluentd.io/destination":"loki","grafana/overview-dashboard":"d/apps-prometheus-loki/8c87aef"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
+            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"dotnet-csharp-demo-app","namespace":"default","description":"C# .NET 8 Minimal API Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","sonarqube.org/project-key":"apps-demo-2026","backstage.io/kubernetes-id":"dotnet-csharp-app","backstage.io/kubernetes-namespace":"apps-demo","prometheus.io/scrape":"true","prometheus.io/path":"/metrics","fluentd.io/destination":"loki","grafana/overview-dashboard":"d/apps-prometheus-loki/8c87aef"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
+            'hash-dotnet-csharp-demo-app-v2',
+            'hash-dotnet-csharp-demo-app-v2'
         )
     ON CONFLICT (entity_id) DO UPDATE SET
         unprocessed_entity = EXCLUDED.unprocessed_entity,
@@ -355,16 +359,16 @@ data:
         ),
         (
             'cccccccc-cccc-cccc-cccc-cccccccccccc',
-            'hash-python-demo-app-v1',
+            'hash-python-demo-app-v2',
             'cccccccc-3333-3333-3333-cccccccccccc',
-            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"python-demo-app","namespace":"default","description":"Python 3.12 Flask Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","backstage.io/kubernetes-id":"python-app","backstage.io/kubernetes-namespace":"apps-demo"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
+            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"python-demo-app","namespace":"default","description":"Python 3.12 Flask Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","sonarqube.org/project-key":"apps-demo-2026","backstage.io/kubernetes-id":"python-app","backstage.io/kubernetes-namespace":"apps-demo","prometheus.io/scrape":"true","prometheus.io/path":"/metrics","fluentd.io/destination":"loki","grafana/overview-dashboard":"d/apps-prometheus-loki/8c87aef"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
             'component:default/python-demo-app'
         ),
         (
             'dddddddd-dddd-dddd-dddd-dddddddddddd',
-            'hash-dotnet-csharp-demo-app-v1',
+            'hash-dotnet-csharp-demo-app-v2',
             'dddddddd-4444-4444-4444-dddddddddddd',
-            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"dotnet-csharp-demo-app","namespace":"default","description":"C# .NET 8 Minimal API Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","backstage.io/kubernetes-id":"dotnet-csharp-app","backstage.io/kubernetes-namespace":"apps-demo"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
+            '{"apiVersion":"backstage.io/v1alpha1","kind":"Component","metadata":{"name":"dotnet-csharp-demo-app","namespace":"default","description":"C# .NET 8 Minimal API Demo App on EKS","annotations":{"github.com/project-slug":"cirodasilvaj/apps-demo-2026","sonarqube.org/project-key":"apps-demo-2026","backstage.io/kubernetes-id":"dotnet-csharp-app","backstage.io/kubernetes-namespace":"apps-demo","prometheus.io/scrape":"true","prometheus.io/path":"/metrics","fluentd.io/destination":"loki","grafana/overview-dashboard":"d/apps-prometheus-loki/8c87aef"}},"spec":{"type":"service","lifecycle":"production","owner":"platform-team","dependsOn":["resource:default/kube-demo-eks"]}}',
             'component:default/dotnet-csharp-demo-app'
         )
     ON CONFLICT (entity_id) DO UPDATE SET
