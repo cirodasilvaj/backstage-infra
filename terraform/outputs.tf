@@ -390,5 +390,25 @@ output "route53_friendly_https_urls" {
   }
 }
 
+# ==============================================================================
+# AWS Parameter Store Output (Single Source of Truth)
+# ==============================================================================
+
+output "ssm_credentials_parameter_name" {
+  description = "Single unified AWS SSM Parameter Store resource containing ALL endpoints and credentials"
+  value       = aws_ssm_parameter.platform_credentials.name
+}
+
+output "ssm_credentials_parameter_arn" {
+  description = "ARN of the unified AWS SSM Parameter Store resource"
+  value       = aws_ssm_parameter.platform_credentials.arn
+}
+
+output "how_to_retrieve_credentials_command" {
+  description = "AWS CLI command to retrieve all endpoints and credentials securely"
+  value       = "aws ssm get-parameter --name '${aws_ssm_parameter.platform_credentials.name}' --with-decryption --query 'Parameter.Value' --output text | jq ."
+}
+
+
 
 
