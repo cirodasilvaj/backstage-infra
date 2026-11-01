@@ -27,6 +27,7 @@ permissions:
 
 env:
   TF_VERSION: "1.10.5"
+  TF_VAR_github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
 jobs:
   terraform:
@@ -120,6 +121,10 @@ jobs:
         if: github.event_name == 'push' || github.event.inputs.action == 'apply' || github.event.inputs.action == ''
         run: |
           kubectl apply -f ../k8s-manifests/backstage/
+          kubectl create secret generic backstage-github-credentials \
+            --namespace backstage \
+            --from-literal=token="${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
           kubectl apply -f ../k8s-manifests/sonarqube/
           kubectl delete deployment grafana-metrics -n grafana --ignore-not-found || true
           kubectl apply -f ../k8s-manifests/grafana/
