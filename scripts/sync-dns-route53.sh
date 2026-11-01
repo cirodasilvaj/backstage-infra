@@ -23,6 +23,8 @@ SERVICES=(
   "grafana:grafana:grafana-external"
   "argocd:argocd:argocd-external"
   "sonarqube:sonarqube:sonarqube-external"
+  "python:apps-demo:python-app"
+  "dotnet:apps-demo:dotnet-csharp-app"
 )
 
 CHANGES=()
