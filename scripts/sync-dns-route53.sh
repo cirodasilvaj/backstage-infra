@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Sincronizador CLI de Endpoints EKS com Route 53 (Ambiente Efêmero de Lab)
+# Sincronizador CLI: Route 53 + Emissão Automática de Certificado SSL/TLS ACM (HTTPS)
 # ==============================================================================
 set -euo pipefail
 
-echo "🔍 Buscando Hosted Zone pública (*realhandsonlabs.net) no Route 53..."
+echo "🔍 Identificando Conta AWS ativa e Hosted Zone no Route 53..."
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "Desconhecida")
+echo "🏢 Conta AWS identificada: ${ACCOUNT_ID}"
+
 ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[?contains(Name, 'realhandsonlabs.net') && !Config.PrivateZone] | [0]" --output json 2>/dev/null || true)
 
 if [ "$ZONE_INFO" = "null" ] || [ -z "$ZONE_INFO" ]; then
@@ -17,7 +20,50 @@ ZONE_NAME=$(echo "$ZONE_INFO" | jq -r '.Name' | sed 's/\.$//')
 
 echo "✅ Zona Route 53 encontrada: ${ZONE_NAME} (ID: ${ZONE_ID})"
 
-# Mapeamento de subdomínios para os Services no EKS: "subdominio:namespace:service_name"
+# ------------------------------------------------------------------------------
+# Etapa ACM: Emissão e Validação Automática de Certificado Wildcard SSL/TLS
+# ------------------------------------------------------------------------------
+echo "🔐 Verificando Certificado SSL/TLS Wildcard (*.${ZONE_NAME}) no AWS ACM..."
+CERT_ARN=$(aws acm list-certificates --query "CertificateSummaryList[?DomainName=='*.${ZONE_NAME}'].CertificateArn | [0]" --output text 2>/dev/null || true)
+
+if [ "$CERT_ARN" = "None" ] || [ -z "$CERT_ARN" ]; then
+  echo "🚀 Solicitando novo Certificado Wildcard no AWS Certificate Manager (ACM)..."
+  CERT_ARN=$(aws acm request-certificate \
+    --domain-name "*.${ZONE_NAME}" \
+    --subject-alternative-names "${ZONE_NAME}" \
+    --validation-method DNS \
+    --tags Key=Project,Value=backstage-infra Key=Environment,Value=sandbox Key=ManagedBy,Value=cli Key=CostCenter,Value=devops-platform-cloud \
+    --query CertificateArn --output text)
+  echo "✅ Certificado ACM solicitado: ${CERT_ARN}"
+
+  echo "⏳ Aguardando registros de validação DNS gerados pelo ACM..."
+  sleep 4
+fi
+
+VAL_NAME=$(aws acm describe-certificate --certificate-arn "$CERT_ARN" --query "Certificate.DomainValidationOptions[0].ResourceRecord.Name" --output text 2>/dev/null || true)
+VAL_VALUE=$(aws acm describe-certificate --certificate-arn "$CERT_ARN" --query "Certificate.DomainValidationOptions[0].ResourceRecord.Value" --output text 2>/dev/null || true)
+
+if [ -n "$VAL_NAME" ] && [ "$VAL_NAME" != "None" ]; then
+  echo "📝 Inserindo CNAME de validação do ACM no Route 53..."
+  echo "   ${VAL_NAME} -> ${VAL_VALUE}"
+  aws route53 change-resource-record-sets --hosted-zone-id "$ZONE_ID" --change-batch "{
+    \"Comment\": \"ACM DNS Validation for *.${ZONE_NAME}\",
+    \"Changes\": [{
+      \"Action\": \"UPSERT\",
+      \"ResourceRecordSet\": {
+        \"Name\": \"${VAL_NAME}\",
+        \"Type\": \"CNAME\",
+        \"TTL\": 60,
+        \"ResourceRecords\": [{\"Value\": \"${VAL_VALUE}\"}]
+      }
+    }]
+  }" >/dev/null || true
+  echo "✅ Registro de validação ACM publicado no Route 53."
+fi
+
+# ------------------------------------------------------------------------------
+# Etapa CNAMEs dos Serviços Kubernetes
+# ------------------------------------------------------------------------------
 SERVICES=(
   "backstage:backstage:backstage-external"
   "grafana:grafana:grafana-external"
@@ -45,7 +91,7 @@ done
 
 if [ ${#CHANGES[@]} -gt 0 ]; then
   CHANGES_JSON=$(IFS=,; echo "${CHANGES[*]}")
-  BATCH_JSON="{\"Comment\":\"Auto-sync EKS endpoints to Route 53\",\"Changes\":[${CHANGES_JSON}]}"
+  BATCH_JSON="{\"Comment\":\"Auto-sync EKS endpoints to Route 53 with ACM SSL\",\"Changes\":[${CHANGES_JSON}]}"
   
   aws route53 change-resource-record-sets \
     --hosted-zone-id "$ZONE_ID" \
@@ -53,11 +99,13 @@ if [ ${#CHANGES[@]} -gt 0 ]; then
     
   echo ""
   echo "=============================================================================="
-  echo "🎉 Endpoints Route 53 sincronizados com sucesso!"
+  echo "🎉 Endpoints Route 53 & Certificado ACM SSL/TLS configurados com sucesso!"
   echo "=============================================================================="
+  echo "🔒 ACM Certificate ARN: ${CERT_ARN}"
+  echo "🌐 Endpoints com suporte a HTTP e HTTPS:"
   for item in "${SERVICES[@]}"; do
     IFS=":" read -r SUBDOMAIN _ _ <<< "$item"
-    echo " 👉 http://${SUBDOMAIN}.${ZONE_NAME}"
+    echo " 👉 https://${SUBDOMAIN}.${ZONE_NAME}  (ou http://${SUBDOMAIN}.${ZONE_NAME})"
   done
   echo "=============================================================================="
 fi

@@ -372,4 +372,23 @@ output "route53_sonarqube_url" {
   value       = local.has_lab_zone ? "http://sonarqube.${local.lab_domain}" : module.sonarqube.external_url
 }
 
+output "aws_account_id" {
+  description = "Auto-discovered AWS Account ID"
+  value       = local.aws_account_id
+}
+
+output "acm_certificate_arn" {
+  description = "Validated ACM Wildcard SSL/TLS Certificate ARN for HTTPS"
+  value       = local.has_lab_zone ? aws_acm_certificate.lab_cert[0].arn : ""
+}
+
+output "route53_friendly_https_urls" {
+  description = "Clean, friendly HTTPS URLs mapped to Route 53 with ACM SSL/TLS"
+  value = {
+    for k, r in aws_route53_record.services :
+    k => "https://${r.fqdn}"
+  }
+}
+
+
 
