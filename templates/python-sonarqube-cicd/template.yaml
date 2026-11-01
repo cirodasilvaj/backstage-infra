@@ -1,4 +1,4 @@
-apiVersion: scaffolder.backstage.io/v1beta3
+apiVersion: backstage.io/v1beta2
 kind: Template
 metadata:
   name: python-sonarqube-cicd-template
