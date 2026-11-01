@@ -16,6 +16,7 @@ Bem-vindo à plataforma de engenharia de software corporativa! Este guia fornece
    * [3.4 Labels e Tags de Governança (FinOps & CNCF)](#34-labels-mandatórias-de-governança-e-finops)
    * [3.5 Qualidade e Segurança de Código (SonarQube Quality Gate)](#35-qualidade-de-código-e-sonarqube-quality-gate)
    * [3.6 Rede, DNS Dinâmico e Certificado HTTPS (Route 53 & ACM)](#36-rede-dns-dinâmico-e-https-acm)
+   * [3.7 Estratégia de Observabilidade: Mínimo de Dashboards (Backstage + Grafana Dashboard-as-Code)](#37-estratégia-de-observabilidade-mínimo-de-dashboards-backstage--grafana-dashboard-as-code)
 4. [Anatomia Completa do `catalog-info.yaml`](#4-anatomia-completa-do-catalog-infoyaml)
 5. [Checklist do Desenvolvedor (Definition of Done)](#5-checklist-do-desenvolvedor-definition-of-done)
 
@@ -32,10 +33,24 @@ O **Backstage** é o seu Portal do Desenvolvedor (IDP). A partir dele, você tem
 
 > **URLs de Acesso ao Ambiente:**
 > * **Backstage:** `https://backstage.<lab-id>.realhandsonlabs.net` (ou `http://...`)
-> * **Credenciais Padrão:** Usuário `admin` | Senha `Backstage@2026` (ou via login corporativo Keycloak SSO)
-> * **SonarQube:** `https://sonarqube.<lab-id>.realhandsonlabs.net` (`admin` / `Sonar@2026`)
-> * **Grafana:** `https://grafana.<lab-id>.realhandsonlabs.net` (`admin` / `Grafana@2026`)
-> * **ArgoCD:** `https://argocd.<lab-id>.realhandsonlabs.net` (`admin`)
+> * **SonarQube:** `https://sonarqube.<lab-id>.realhandsonlabs.net`
+> * **Grafana:** `https://grafana.<lab-id>.realhandsonlabs.net`
+> * **ArgoCD:** `https://argocd.<lab-id>.realhandsonlabs.net`
+>
+> 🔒 **Credenciais Seguras no AWS Systems Manager (SSM) Parameter Store:**  
+> Por conformidade de segurança corporativa, nenhuma senha é mantida em texto plano nas documentações. Todas as credenciais de acesso para desenvolvedores e administradores estão centralizadas e criptografadas no recurso único:
+> * **Nome do Recurso no AWS Parameter Store:** `/kube-demo-2026/platform/credentials`
+> * **ARN do Recurso:** `arn:aws:ssm:us-east-1:<AWS_ACCOUNT_ID>:parameter/kube-demo-2026/platform/credentials`
+> * **Tipo:** `SecureString` (KMS Encrypted)
+>
+> **Comando para consultar suas credenciais via AWS CLI:**
+> ```bash
+> aws ssm get-parameter \
+>   --name "/kube-demo-2026/platform/credentials" \
+>   --with-decryption \
+>   --query "Parameter.Value" \
+>   --output text | jq .
+> ```
 
 ---
 
@@ -298,6 +313,262 @@ sonar.python.coverage.reportPaths=coverage.xml
 
 ---
 
+### 3.7 Estratégia de Observabilidade: Mínimo de Dashboards (Backstage + Grafana Dashboard-as-Code)
+
+#### A Filosofia: "Single Pane of Glass" vs Sprawl de Dashboards
+Na engenharia de software moderna, um dos maiores desafios operacionais é o **sprawl de dashboards** (centenas de dashboards dispersos, desatualizados e com métricas redundantes que ninguém mantém). 
+
+A melhor prática adotada nesta plataforma é o padrão **Backstage como Single Pane of Glass + Grafana como Motor Operacional**:
+* **No Backstage (Visão Diária do DEV):** O desenvolvedor encontra tudo consolidado na página do seu serviço no catálogo: código, documentação (*TechDocs*), status de pods no Kubernetes, e **cards/abas com os Golden Signals (Throughput/RPS, Taxa de Erros HTTP, Latência p99 e Logs de Erro no Loki)**. O DEV não precisa procurar ou navegar em pastas no Grafana para ver a saúde imediata da aplicação.
+* **No Grafana (Visão Operacional / Debugging Avançado):** O Grafana permanece como o motor de renderização e análise profunda. Caso ocorra um incidente grave, o DEV clica em *"Abrir no Grafana"* diretamente pelo Backstage para acessar queries livres no Explore (PromQL/LogQL), correlações temporais e histogramas completos.
+
+#### Arquitetura de Provisionamento: Dashboard-as-Code via Scaffolder
+Ao criar a aplicação utilizando o **Software Template (Scaffolder)** do Backstage, o dashboard correspondente no Grafana é gerado e provisionado de forma **100% automatizada**, sem cliques manuais.
+
+```mermaid
+flowchart TD
+    DEV([Desenvolvedor]) -->|Preenche formulário no Backstage| SCAFFOLDER[Backstage Scaffolder]
+    
+    subgraph AUTO["Automação Dashboard-as-Code"]
+        SCAFFOLDER -->|1. Renderiza Código + skeleton| REPO[Repositório Git]
+        SCAFFOLDER -->|2. Gera dashboard.json| DASH[dashboards/grafana-dashboard.json]
+        SCAFFOLDER -->|3. Gera catalog-info.yaml| CAT[catalog-info.yaml com annotations]
+    end
+    
+    REPO & DASH & CAT -->|Commit & Push| GIT[(GitHub / GitLab)]
+    
+    GIT -->|CI/CD Pipeline ou GitOps Operator| PROV[Provisionador de Dashboards]
+    PROV -->|Cria via API ou ConfigMap| GRAFANA[(Grafana Server)]
+    
+    GRAFANA -.->|Consulta via Plugin API| BACKSTAGE[Backstage Portal / EntityPage]
+    BACKSTAGE -->|Exibe Métricas e Logs na tela do DEV| DEV
+```
+
+---
+
+#### 1. Definição do Template no Backstage (`template.yaml`)
+O template do Scaffolder captura o identificador do serviço e orquestra a renderização dos manifests e do dashboard:
+
+```yaml
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: standard-microservice-template
+  title: Microserviço com Dashboard Grafana Automático
+  description: Cria repositório, provisiona dashboard no Grafana e registra no catálogo
+spec:
+  owner: platform-team
+  type: service
+  parameters:
+    - title: Detalhes do Serviço
+      required:
+        - component_id
+        - owner
+      properties:
+        component_id:
+          title: Nome do Serviço
+          type: string
+          description: Identificador kebab-case (ex: payment-service)
+        owner:
+          title: Time Responsável
+          type: string
+          description: Entidade do grupo no Backstage (ex: squad-checkout)
+  steps:
+    - id: fetch-base
+      name: Renderizando templates de código e observabilidade
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          component_id: ${{ parameters.component_id }}
+          owner: ${{ parameters.owner }}
+
+    - id: publish-repo
+      name: Criando repositório no GitHub
+      action: publish:github
+      input:
+        repoUrl: github.com?repo=${{ parameters.component_id }}&owner=cirodasilvaj
+        defaultBranch: main
+
+    - id: register-catalog
+      name: Registrando componente no Backstage
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish-repo'].output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+```
+
+---
+
+#### 2. Arquivos no diretório `skeleton/` do Template
+
+##### A. `catalog-info.yaml` (Renderizado com as Anotações do Grafana)
+As anotações vinculam a entidade do Backstage às tags e dashboards correspondentes:
+
+```yaml
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.component_id }}
+  annotations:
+    # Vincula o dashboard criado automaticamente ao serviço no Backstage
+    grafana/dashboard-selector: ${{ values.component_id }}
+    grafana/tag-selector: 'service:${{ values.component_id }}'
+    backstage.io/source-location: url:https://github.com/cirodasilvaj/${{ values.component_id }}
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: service
+  lifecycle: production
+  owner: ${{ values.owner }}
+```
+
+##### B. `dashboards/grafana-dashboard.json` (Template JSON Jinja/Nunjucks)
+O arquivo de dashboard foca exclusivamente nos **Golden Signals essenciais** para evitar excesso de métricas:
+
+```json
+{
+  "title": "${{ values.component_id }} - Visão Operacional",
+  "uid": "${{ values.component_id }}-dashboard",
+  "tags": ["service:${{ values.component_id }}", "automated", "gold-signals"],
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Throughput / Taxa de Requisições (RPS)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{app=\"${{ values.component_id }}\"}[1m]))",
+          "legendFormat": "RPS"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Taxa de Erros HTTP (4xx / 5xx)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{app=\"${{ values.component_id }}\",status=~\"5..\"}[1m])) / sum(rate(http_requests_total{app=\"${{ values.component_id }}\"}[1m])) * 100",
+          "legendFormat": "5xx Error %"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Latência p99 (Milissegundos)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{app=\"${{ values.component_id }}\"}[1m])) by (le)) * 1000",
+          "legendFormat": "p99 (ms)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Logs de Erro em Tempo Real (Loki)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "{app=\"${{ values.component_id }}\"} |= \"error\"",
+          "queryType": "range"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+#### 3. Automação do Provisionamento no Grafana
+Para carregar o dashboard no Grafana de maneira 100% automatizada:
+
+* **Opção 1 — Via CI/CD Pipeline (GitHub Actions):**
+  No workflow de CI da aplicação gerada pelo Scaffolder, execute o step de publicação:
+  ```yaml
+  - name: Provisionar Dashboard no Grafana
+    env:
+      GRAFANA_URL: "https://grafana.realhandsonlabs.net"
+      GRAFANA_TOKEN: ${{ secrets.GRAFANA_API_TOKEN }}
+    run: |
+      curl -X POST \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
+        -d @dashboards/grafana-dashboard.json \
+        "${GRAFANA_URL}/api/dashboards/db"
+  ```
+
+* **Opção 2 — Via Kubernetes ConfigMap / GitOps (Grafana Sidecar / Operator):**
+  O Scaffolder gera um manifesto K8s `grafana-dashboard-configmap.yaml` com o label de auto-descoberta:
+  ```yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: ${{ values.component_id }}-dashboard
+    namespace: monitoring
+    labels:
+      grafana_dashboard: "1"
+  data:
+    ${{ values.component_id }}.json: |-
+      # Conteúdo do dashboard JSON
+  ```
+  O sidecar do Grafana detecta o ConfigMap e o dashboard aparece instantaneamente na interface.
+
+---
+
+#### 4. Integração no Backstage (`app-config.yaml` & `EntityPage.tsx`)
+
+* **Configuração do Plugin no `app-config.yaml`:**
+  ```yaml
+  grafana:
+    domain: https://grafana.realhandsonlabs.net
+    apiToken: ${GRAFANA_API_TOKEN}
+  ```
+  > 🔒 **Nota de Segurança:** As credenciais e API tokens do Grafana são obtidos dinamicamente a partir do AWS SSM Parameter Store:  
+  > `arn:aws:ssm:us-east-1:<AWS_ACCOUNT_ID>:parameter/kube-demo-2026/platform/credentials`.
+
+* **Renderização na Interface do Backstage (`EntityPage.tsx`):**
+  Utilizando o pacote `@k-phoen/backstage-plugin-grafana`:
+  ```tsx
+  import { EntityGrafanaDashboardsCard, isGrafanaAvailable } from '@k-phoen/backstage-plugin-grafana';
+
+  // Card resumido na aba Overview
+  const overviewContent = (
+    <Grid container spacing={3} alignItems="stretch">
+      <EntitySwitch>
+        <EntitySwitch.Case if={isGrafanaAvailable}>
+          <Grid item md={6} xs={12}>
+            <EntityGrafanaDashboardsCard />
+          </Grid>
+        </EntitySwitch.Case>
+      </EntitySwitch>
+    </Grid>
+  );
+
+  // Aba dedicada 'Grafana' na entidade do componente
+  const serviceEntityPage = (
+    <EntityLayout>
+      <EntityLayout.Route path="/" title="Overview">
+        {overviewContent}
+      </EntityLayout.Route>
+      <EntityLayout.Route path="/grafana" title="Grafana" if={isGrafanaAvailable}>
+        <EntityGrafanaDashboardsCard />
+      </EntityLayout.Route>
+      <EntityLayout.Route path="/docs" title="Docs">
+        <EntityTechdocsContent />
+      </EntityLayout.Route>
+    </EntityLayout>
+  );
+  ```
+
+---
+
 ## 4. Anatomia Completa do `catalog-info.yaml`
 
 Crie o arquivo `catalog-info.yaml` na raiz do seu repositório de código. Este é o arquivo que ensina o Backstage sobre o seu serviço:
@@ -332,7 +603,8 @@ metadata:
     prometheus.io/rule: payment_service_http_requests_total
     
     # Vincula os dashboards do Grafana
-    grafana/dashboard-selector: "app=payment-service"
+    grafana/dashboard-selector: "payment-service"
+    grafana/tag-selector: "service:payment-service"
     
     # Vincula a sincronização do GitOps
     argocd/app-name: payment-service

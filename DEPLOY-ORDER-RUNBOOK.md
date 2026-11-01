@@ -20,9 +20,16 @@ flowchart TD
 
 ## Phase 0 — Before the Old Account Expires (Optional) & Updating AWS Credentials
 
-1. **(Optional — If the previous AWS account is still active)** Download the latest live PostgreSQL SQL dump from the Backstage endpoint:
+1. **(Optional — If the previous AWS account is still active)** Download the latest live PostgreSQL SQL dump from the Backstage endpoint using credentials retrieved from the AWS SSM Parameter Store:
    ```bash
-   curl -u admin:Backstage@2026 \
+   # Retrieve Backstage password from the unified AWS Parameter Store
+   BACKSTAGE_PASS=$(aws ssm get-parameter \
+     --name "/kube-demo-2026/platform/credentials" \
+     --with-decryption \
+     --query "Parameter.Value" \
+     --output text | jq -r '.credentials.backstage.password')
+
+   curl -u "admin:${BACKSTAGE_PASS}" \
      -o /home/ciro/backstate-infra/db/schema.sql \
      http://<BACKSTAGE_ELB_HOSTNAME>/backstage-rds-dump.sql
    ```
@@ -95,13 +102,17 @@ gh auth switch -u cirodasilvaj
 gh workflow run terraform.yml -R cirodasilvaj/backstage-infra -f action=apply
 ```
 - **Average duration:** ~6 to 8 minutes.
-- **Upon completion, friendly Route 53 URLs, ELB endpoints, and credentials are displayed in the GitHub Step Summary:**
-  - `route53_backstage_url`: `http://backstage.<lab-id>.realhandsonlabs.net` (`admin` / `Backstage@2026`)
-  - `route53_grafana_url`: `http://grafana.<lab-id>.realhandsonlabs.net` (`admin` / `Grafana@2026`)
-  - `route53_argocd_url`: `http://argocd.<lab-id>.realhandsonlabs.net` (`admin` / initial admin secret)
-  - `route53_sonarqube_url`: `http://sonarqube.<lab-id>.realhandsonlabs.net` (`admin` / `Sonar@2026`)
+- **Security & Parameter Store Notice:** In compliance with security standards, all URLs and credentials are encrypted and stored in a single AWS Systems Manager Parameter Store resource:
+  - **Parameter Name:** `/kube-demo-2026/platform/credentials`
+  - **Parameter ARN:** `arn:aws:ssm:us-east-1:<AWS_ACCOUNT_ID>:parameter/kube-demo-2026/platform/credentials`
+  - **Type:** `SecureString` (KMS Encrypted)
+  - Friendly Route 53 URLs:
+    - `route53_backstage_url`: `https://backstage.<lab-id>.realhandsonlabs.net`
+    - `route53_grafana_url`: `https://grafana.<lab-id>.realhandsonlabs.net`
+    - `route53_argocd_url`: `https://argocd.<lab-id>.realhandsonlabs.net`
+    - `route53_sonarqube_url`: `https://sonarqube.<lab-id>.realhandsonlabs.net`
   *(Fallback ELB URLs are also preserved: `argocd_external_url`, `backstage_external_url`, `sonarqube_external_url`, `grafana_external_url`)*
-- **Manual CLI sync tool (optional):** `./scripts/sync-dns-route53.sh` can be executed at any time to re-sync or verify Route 53 records from local terminal.
+- **Manual CLI sync tool (optional):** `./scripts/sync-dns-route53.sh` can be executed at any time to re-sync or verify Route 53 records and ACM HTTPS status from local terminal.
 
 ---
 
@@ -134,14 +145,28 @@ gh workflow run deploy.yml -R cirodasilvaj/samba-ad-keycloak -f action=apply
 
 ---
 
-## Platform Default Credentials Summary
+## Platform Credentials & Single Source of Truth in AWS Parameter Store
 
-| Service | Username | Default Password | Port / Endpoint |
+> 🔒 **Security Notice:** Plain-text passwords are not exposed in documentation files. All credentials, tokens, and endpoints are consolidated and encrypted in a single AWS Systems Manager Parameter Store resource:
+> * **Parameter Name:** `/kube-demo-2026/platform/credentials`
+> * **Parameter ARN:** `arn:aws:ssm:us-east-1:<AWS_ACCOUNT_ID>:parameter/kube-demo-2026/platform/credentials`
+> * **Type:** `SecureString` (AWS KMS Encrypted)
+
+### Command to retrieve all credentials and URLs:
+```bash
+aws ssm get-parameter \
+  --name "/kube-demo-2026/platform/credentials" \
+  --with-decryption \
+  --query "Parameter.Value" \
+  --output text | jq .
+```
+
+| Service | Username | Password Location | Port / Endpoint |
 | :--- | :--- | :--- | :--- |
-| **Backstage Portal** | `admin` | `Backstage@2026` | `:80` or `:7007` |
-| **SonarQube QA & Security** | `admin` | `Sonar@2026` (or `admin` during initial 2-min boot) | `:80` or `:9000` |
-| **Grafana Observability** | `admin` | `Grafana@2026` | `:80` or `:3000` |
-| **ArgoCD GitOps** | `admin` | Generated in `argocd-initial-admin-secret` (printed in pipeline output) | `:80` or `:8080` |
-| **AWS RDS PostgreSQL** | `backstage` | `BackstageRds2026!` | `:5432` (internal in VPC) |
-| **Keycloak IAM** | `admin` | `KeycloakAdmin2026!` | `https://sso.empresa.local` (internal in VPC) |
-| **Samba 4 AD (`EMPRESA.LOCAL`)** | `Administrator` | `SambaAdm2026!Strong` | LDAP `:389` / LDAPS `:636` / Kerberos `:88` |
+| **Backstage Portal** | `admin` | `.credentials.backstage.password` | `:80` or `:7007` (HTTPS: 443) |
+| **SonarQube QA & Security** | `admin` | `.credentials.sonarqube.password` | `:80` or `:9000` (HTTPS: 443) |
+| **Grafana Observability** | `admin` | `.credentials.grafana.password` | `:80` or `:3000` (HTTPS: 443) |
+| **ArgoCD GitOps** | `admin` | `.credentials.argocd.get_password_command` | `:80` or `:8080` (HTTPS: 443) |
+| **AWS RDS PostgreSQL** | `backstage` | `.credentials.rds_postgresql.password` | `:5432` (internal in VPC) |
+| **Keycloak IAM** | `admin` | `.credentials.keycloak_sso.password` | `https://sso.<lab-id>...` |
+| **Samba 4 AD (`EMPRESA.LOCAL`)** | `Administrator` | `.credentials.samba_active_directory.password` | LDAP `:389` / LDAPS `:636` |
