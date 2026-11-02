@@ -51,6 +51,11 @@ data:
       github:
         - host: github.com
           token: ${GITHUB_TOKEN}
+          apps:
+            - appId: ${GITHUB_APP_ID}
+              clientId: ${GITHUB_APP_CLIENT_ID}
+              clientSecret: ${GITHUB_APP_CLIENT_SECRET}
+              privateKey: ${GITHUB_APP_PRIVATE_KEY}
     scaffolder:
       defaultAuthor:
         name: Backstage Scaffolder

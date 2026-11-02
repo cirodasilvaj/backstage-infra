@@ -69,36 +69,36 @@ spec:
       input:
         url: ./skeleton
         values:
-          component_id: ${{ parameters.component_id }}
-          description: ${{ parameters.description }}
-          owner: ${{ parameters.owner }}
-          system: ${{ parameters.system }}
-          destinationOwner: ${{ parameters.destinationOwner }}
+          component_id: '{{ parameters.component_id }}'
+          description: '{{ parameters.description }}'
+          owner: '{{ parameters.owner }}'
+          system: '{{ parameters.system }}'
+          destinationOwner: '{{ parameters.destinationOwner }}'
 
     # 2. Publish code including .github/workflows/ci.yml to GitHub
-    - id: publish-git
+    - id: publish
       name: Publishing Repository to GitHub
       action: publish:github
       input:
         allowedHosts: ['github.com']
-        description: ${{ parameters.description }}
-        repoUrl: github.com?owner=${{ parameters.destinationOwner }}&repo=${{ parameters.repository }}
+        description: '{{ parameters.description }}'
+        repoUrl: 'github.com?owner={{ parameters.destinationOwner }}&repo={{ parameters.repository }}'
         defaultBranch: main
         repoVisibility: public
 
     # 3. Register the new catalog-info.yaml directly in the Backstage Catalog
-    - id: register-catalog
+    - id: register
       name: Registering in Backstage
       action: catalog:register
       input:
-        repoContentsUrl: ${{ steps['publish-git'].output.repoContentsUrl }}
+        repoContentsUrl: '{{ steps.publish.output.repoContentsUrl }}'
         catalogInfoPath: '/catalog-info.yaml'
 
   # Links displayed in the UI after completion
   output:
     links:
       - title: Open Git Repository
-        url: ${{ steps['publish-git'].output.remoteUrl }}
+        url: '{{ steps.publish.output.remoteUrl }}'
       - title: View in Backstage Catalog
         icon: catalog
-        entityRef: ${{ steps['register-catalog'].output.entityRef }}
+        entityRef: '{{ steps.register.output.entityRef }}'

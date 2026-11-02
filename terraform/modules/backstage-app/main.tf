@@ -87,7 +87,7 @@ resource "kubernetes_secret_v1" "backstage_k8s_config" {
   type = "Opaque"
 }
 
-# GitHub Token Secret for Backstage Scaffolder repository creation and catalog integrations
+# GitHub Token & App Credentials Secret for Backstage Scaffolder repository creation and catalog integrations
 resource "kubernetes_secret_v1" "backstage_github_credentials" {
   metadata {
     name      = "backstage-github-credentials"
@@ -98,7 +98,15 @@ resource "kubernetes_secret_v1" "backstage_github_credentials" {
   }
 
   data = {
-    token = var.github_token
+    token                    = var.github_token
+    app_id                   = var.github_app_id
+    client_id                = var.github_app_client_id
+    client_secret            = var.github_app_client_secret
+    private_key              = var.github_app_private_key
+    GITHUB_APP_APP_ID        = var.github_app_id
+    GITHUB_APP_CLIENT_ID     = var.github_app_client_id
+    GITHUB_APP_CLIENT_SECRET = var.github_app_client_secret
+    GITHUB_APP_PRIVATE_KEY   = var.github_app_private_key
   }
 
   type = "Opaque"

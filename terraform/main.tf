@@ -23,6 +23,27 @@ module "rds" {
   db_password    = var.rds_db_password
 }
 
+# GitHub App credentials from AWS SSM Parameter Store
+data "aws_ssm_parameter" "github_app_id" {
+  name            = "/backstage/github/app_id"
+  with_decryption = true
+}
+
+data "aws_ssm_parameter" "github_client_id" {
+  name            = "/backstage/github/client_id"
+  with_decryption = true
+}
+
+data "aws_ssm_parameter" "github_client_secret" {
+  name            = "/backstage/github/client_secret"
+  with_decryption = true
+}
+
+data "aws_ssm_parameter" "github_private_key" {
+  name            = "/backstage/github/private_key"
+  with_decryption = true
+}
+
 # 3. Register Backstage as an ArgoCD Application so ArgoCD takes over
 #    deploying/syncing it from k8s-manifests/backstage in this same repo.
 module "backstage_app" {
@@ -43,8 +64,12 @@ module "backstage_app" {
   db_password  = var.rds_db_password
   cluster_name = var.eks_cluster_name
 
-  github_token        = var.github_token
-  acm_certificate_arn = local.has_lab_zone ? aws_acm_certificate_validation.lab_cert[0].certificate_arn : ""
+  github_token             = var.github_token
+  github_app_id            = data.aws_ssm_parameter.github_app_id.value
+  github_app_client_id     = data.aws_ssm_parameter.github_client_id.value
+  github_app_client_secret = data.aws_ssm_parameter.github_client_secret.value
+  github_app_private_key   = data.aws_ssm_parameter.github_private_key.value
+  acm_certificate_arn      = local.has_lab_zone ? aws_acm_certificate_validation.lab_cert[0].certificate_arn : ""
 
   depends_on = [module.argocd, module.rds]
 }
