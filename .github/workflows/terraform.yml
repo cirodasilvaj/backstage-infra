@@ -49,6 +49,38 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
 
+      - name: Sync GitHub Secrets to AWS SSM Parameter Store
+        working-directory: .
+        env:
+          GH_APP_ID_SECRET: ${{ secrets.GH_APP_ID }}
+          GH_APP_CLIENT_ID_SECRET: ${{ secrets.GH_APP_CLIENT_ID }}
+          GH_APP_CLIENT_SECRET_SECRET: ${{ secrets.GH_APP_CLIENT_SECRET }}
+          GH_APP_WEBHOOK_SECRET_SECRET: ${{ secrets.GH_APP_WEBHOOK_SECRET }}
+          GH_APP_PRIVATE_KEY_SECRET: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          GH_APP_INSTALLATION_ID_SECRET: ${{ secrets.GH_APP_INSTALLATION_ID }}
+        run: |
+          set -euo pipefail
+          echo "Syncing GitHub Actions Secrets to AWS SSM Parameter Store..."
+          if [ -n "$GH_APP_ID_SECRET" ]; then
+            aws ssm put-parameter --name "/backstage/github/app_id" --value "$GH_APP_ID_SECRET" --type "SecureString" --overwrite || true
+          fi
+          if [ -n "$GH_APP_CLIENT_ID_SECRET" ]; then
+            aws ssm put-parameter --name "/backstage/github/client_id" --value "$GH_APP_CLIENT_ID_SECRET" --type "SecureString" --overwrite || true
+          fi
+          if [ -n "$GH_APP_CLIENT_SECRET_SECRET" ]; then
+            aws ssm put-parameter --name "/backstage/github/client_secret" --value "$GH_APP_CLIENT_SECRET_SECRET" --type "SecureString" --overwrite || true
+          fi
+          if [ -n "$GH_APP_WEBHOOK_SECRET_SECRET" ]; then
+            aws ssm put-parameter --name "/backstage/github/webhook_secret" --value "$GH_APP_WEBHOOK_SECRET_SECRET" --type "SecureString" --overwrite || true
+          fi
+          if [ -n "$GH_APP_PRIVATE_KEY_SECRET" ]; then
+            aws ssm put-parameter --name "/backstage/github/private_key" --value "$GH_APP_PRIVATE_KEY_SECRET" --type "SecureString" --overwrite || true
+          fi
+          if [ -n "$GH_APP_INSTALLATION_ID_SECRET" ]; then
+            aws ssm put-parameter --name "/backstage/github/installation_id" --value "$GH_APP_INSTALLATION_ID_SECRET" --type "SecureString" --overwrite || true
+          fi
+          echo "GitHub Secrets sync complete."
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -126,16 +158,41 @@ jobs:
 
       - name: Sync Backstage manifests and show outputs
         if: github.event_name == 'push' || github.event.inputs.action == 'apply' || github.event.inputs.action == ''
+        env:
+          GH_PAT_SECRET: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          GH_APP_ID_SECRET: ${{ secrets.GH_APP_ID }}
+          GH_APP_CLIENT_ID_SECRET: ${{ secrets.GH_APP_CLIENT_ID }}
+          GH_APP_CLIENT_SECRET_SECRET: ${{ secrets.GH_APP_CLIENT_SECRET }}
+          GH_APP_WEBHOOK_SECRET_SECRET: ${{ secrets.GH_APP_WEBHOOK_SECRET }}
+          GH_APP_PRIVATE_KEY_SECRET: ${{ secrets.GH_APP_PRIVATE_KEY }}
         run: |
           kubectl apply -f ../k8s-manifests/backstage/
-          APP_ID=$(aws ssm get-parameter --name "/backstage/github/app_id" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
-          CLIENT_ID=$(aws ssm get-parameter --name "/backstage/github/client_id" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
-          CLIENT_SECRET=$(aws ssm get-parameter --name "/backstage/github/client_secret" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
-          PRIVATE_KEY=$(aws ssm get-parameter --name "/backstage/github/private_key" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
-          WEBHOOK_SECRET=$(aws ssm get-parameter --name "/backstage/github/webhook_secret" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "development-webhook-secret")
+
+          # 1. Recupera credenciais do GitHub Actions Secrets com fallback no AWS SSM Parameter Store
+          APP_ID="${GH_APP_ID_SECRET}"
+          [ -z "$APP_ID" ] && APP_ID=$(aws ssm get-parameter --name "/backstage/github/app_id" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+
+          CLIENT_ID="${GH_APP_CLIENT_ID_SECRET}"
+          [ -z "$CLIENT_ID" ] && CLIENT_ID=$(aws ssm get-parameter --name "/backstage/github/client_id" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+
+          CLIENT_SECRET="${GH_APP_CLIENT_SECRET_SECRET}"
+          [ -z "$CLIENT_SECRET" ] && CLIENT_SECRET=$(aws ssm get-parameter --name "/backstage/github/client_secret" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+
+          WEBHOOK_SECRET="${GH_APP_WEBHOOK_SECRET_SECRET}"
+          [ -z "$WEBHOOK_SECRET" ] && WEBHOOK_SECRET=$(aws ssm get-parameter --name "/backstage/github/webhook_secret" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "development-webhook-secret")
+
+          if [ -n "${GH_APP_PRIVATE_KEY_SECRET}" ]; then
+            PRIVATE_KEY="${GH_APP_PRIVATE_KEY_SECRET}"
+          else
+            PRIVATE_KEY=$(aws ssm get-parameter --name "/backstage/github/private_key" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+          fi
+
+          TOKEN="${GH_PAT_SECRET}"
+
+          # 2. Configura Secret permanente no cluster Kubernetes
           kubectl create secret generic backstage-github-credentials \
             --namespace backstage \
-            --from-literal=token="${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}" \
+            --from-literal=token="$TOKEN" \
             --from-literal=app_id="$APP_ID" \
             --from-literal=client_id="$CLIENT_ID" \
             --from-literal=client_secret="$CLIENT_SECRET" \
