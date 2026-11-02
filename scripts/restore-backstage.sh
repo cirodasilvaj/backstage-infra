@@ -135,7 +135,7 @@ COUNTER=0
 HEALTH_OK=false
 
 while [[ ${COUNTER} -lt ${MAX_RETRIES} ]]; do
-  if curl -fsS "http://backstage.799416476486.realhandsonlabs.net/healthcheck" >/dev/null 2>&1; then
+  if curl -fsS "http://backstage.992382723408.realhandsonlabs.net/healthcheck" >/dev/null 2>&1; then
     HEALTH_OK=true
     break
   fi
@@ -150,7 +150,7 @@ else
 fi
 
 # Fetch restored entities count via Catalog API
-CATALOG_JSON="$(curl -fsS -u "${AUTH_USER}:${AUTH_PASS}" "http://backstage.799416476486.realhandsonlabs.net/api/catalog/entities" 2>/dev/null || echo '[]')"
+CATALOG_JSON="$(curl -fsS -u "${AUTH_USER}:${AUTH_PASS}" "http://backstage.992382723408.realhandsonlabs.net/api/catalog/entities" 2>/dev/null || echo '[]')"
 CATALOG_ITEMS="$(echo "${CATALOG_JSON}" | jq '. | length' 2>/dev/null || echo 0)"
 
 COMPONENTS_COUNT="$(echo "${CATALOG_JSON}" | jq '[.[] | select(.kind == "Component")] | length' 2>/dev/null || echo 0)"
@@ -164,6 +164,6 @@ echo "   └── Templates: ${TEMPLATES_COUNT}"
 
 echo "=================================================================="
 echo "🎉 Backstage Complete Restore Procedure Completed Successfully!"
-echo "🌐 Portal URL: http://backstage.799416476486.realhandsonlabs.net"
+echo "🌐 Portal URL: http://backstage.992382723408.realhandsonlabs.net"
 echo "📊 Total entities restored in catalog: ${CATALOG_ITEMS}"
 echo "=================================================================="

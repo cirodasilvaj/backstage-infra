@@ -14,7 +14,7 @@ metadata:
     fluentd.io/destination: "loki"
     grafana/dashboard-selector: "${{ values.component_id }}"
     grafana/tag-selector: "service:${{ values.component_id }}"
-    grafana/overview-dashboard: "http://grafana.799416476486.realhandsonlabs.net/d/${{ values.component_id }}-dashboard"
+    grafana/overview-dashboard: "http://grafana.992382723408.realhandsonlabs.net/d/${{ values.component_id }}-dashboard"
     argocd/app-name: ${{ values.component_id }}
   tags:
     - microservice
@@ -28,10 +28,10 @@ metadata:
     - url: https://github.com/${{ values.destinationOwner }}/${{ values.component_id }}
       title: GitHub Source Code
       icon: github
-    - url: http://grafana.799416476486.realhandsonlabs.net/d/${{ values.component_id }}-dashboard
+    - url: http://grafana.992382723408.realhandsonlabs.net/d/${{ values.component_id }}-dashboard
       title: Grafana Dashboard
       icon: dashboard
-    - url: http://sonarqube.799416476486.realhandsonlabs.net/dashboard?id=${{ values.component_id }}
+    - url: http://sonarqube.992382723408.realhandsonlabs.net/dashboard?id=${{ values.component_id }}
       title: SonarQube Quality Gate
       icon: check
 spec:

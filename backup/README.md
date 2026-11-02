@@ -48,5 +48,5 @@ Execute o script oficial de restauração completa com validação e smoke tests
    ```bash
    kubectl rollout restart deployment backstage -n backstage
    kubectl rollout status deployment backstage -n backstage --timeout=180s
-   curl -fsS -u admin:Backstage@2026 http://backstage.799416476486.realhandsonlabs.net/healthcheck
+   curl -fsS -u admin:Backstage@2026 http://backstage.992382723408.realhandsonlabs.net/healthcheck
    ```

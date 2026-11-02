@@ -3,7 +3,7 @@
 > **Objetivo:** Documentar a integração completa do Backstage Developer Portal com a conta do GitHub **`cirodasilvaj`**, abrangendo autenticação de usuários (OAuth/GitHub App), leitura de catálogo (Discovery Processor & Providers), publicação automatizada via Scaffolder Templates e visualização de pipelines CI/CD.
 > **Data de Atualização:** 01/11/2026
 > **Conta GitHub Vinculada:** [`cirodasilvaj`](https://github.com/cirodasilvaj)
-> **Endpoint do Portal:** `http://backstage.799416476486.realhandsonlabs.net`
+> **Endpoint do Portal:** `http://backstage.992382723408.realhandsonlabs.net`
 
 ---
 
@@ -94,8 +94,8 @@ O portal suporta login simultâneo como **Guest** (desenvolvimento) e **GitHub**
 1. Acesse: [GitHub Settings > Developer settings > OAuth Apps > New OAuth App](https://github.com/settings/applications/new).
 2. Preencha as informações:
    * **Application name:** `Backstage DevEx - cirodasilvaj`
-   * **Homepage URL:** `http://backstage.799416476486.realhandsonlabs.net`
-   * **Authorization callback URL:** `http://backstage.799416476486.realhandsonlabs.net/api/auth/github/handler/frame`
+   * **Homepage URL:** `http://backstage.992382723408.realhandsonlabs.net`
+   * **Authorization callback URL:** `http://backstage.992382723408.realhandsonlabs.net/api/auth/github/handler/frame`
 3. Clique em **Register application**.
 4. Copie o **Client ID** e gere um **Client Secret**.
 5. Atualize o Secret no cluster Kubernetes:
@@ -113,8 +113,8 @@ O portal suporta login simultâneo como **Guest** (desenvolvimento) e **GitHub**
 1. Acesse: [GitHub Settings > Developer settings > GitHub Apps > New GitHub App](https://github.com/settings/apps/new).
 2. Preencha:
    * **GitHub App name:** `Backstage-Platform-cirodasilvaj`
-   * **Homepage URL:** `http://backstage.799416476486.realhandsonlabs.net`
-   * **Callback URL:** `http://backstage.799416476486.realhandsonlabs.net/api/auth/github/handler/frame`
+   * **Homepage URL:** `http://backstage.992382723408.realhandsonlabs.net`
+   * **Callback URL:** `http://backstage.992382723408.realhandsonlabs.net/api/auth/github/handler/frame`
    * **Webhook:** Desmarque **Active**.
 3. Permissões de Repositório (**Repository permissions**):
    * **Contents:** `Read & write` (permite publicação de templates pelo Scaffolder).
@@ -141,10 +141,10 @@ O portal suporta login simultâneo como **Guest** (desenvolvimento) e **GitHub**
 
 1. **Validação da Integração de Catálogo:**
    ```bash
-   curl -s -u admin:Backstage@2026 http://backstage.799416476486.realhandsonlabs.net/api/catalog/entities | jq '. | length'
+   curl -s -u admin:Backstage@2026 http://backstage.992382723408.realhandsonlabs.net/api/catalog/entities | jq '. | length'
    ```
 2. **Criação de Repositório via Template (Scaffolder):**
-   * Acesse `http://backstage.799416476486.realhandsonlabs.net/create`.
+   * Acesse `http://backstage.992382723408.realhandsonlabs.net/create`.
    * Escolha o template `Standard Microservice with CI/CD`.
    * Mantenha `destinationOwner: cirodasilvaj`.
    * Preencha o nome do repositório (ex: `teste-scaffolder-01`).
