@@ -177,6 +177,12 @@ spec:
                   name: backstage-github-credentials
                   key: app_id
                   optional: true
+            - name: GITHUB_APP_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-github-credentials
+                  key: webhook_secret
+                  optional: true
             - name: GITHUB_APP_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
