@@ -1,85 +1,95 @@
 app:
-  title: Backstage Demo — kube-demo-2026
   baseUrl: http://localhost:7007
-organization:
-  name: kube-demo-2026
+  title: "Backstage Demo \u2014 kube-demo-2026"
+auth:
+  environment: development
+  providers:
+    github:
+      development:
+        clientId: ${GITHUB_APP_CLIENT_ID:-${GITHUB_CLIENT_ID:-dummy-client-id}}
+        clientSecret: ${GITHUB_APP_CLIENT_SECRET:-${GITHUB_CLIENT_SECRET:-dummy-client-secret}}
+    guest: {}
 backend:
   baseUrl: http://localhost:7007
-  listen:
-    port: 7000
   cors:
     origin: http://localhost:7007
   database:
     client: pg
     connection:
       host: ${POSTGRES_HOST}
-      port: ${POSTGRES_PORT}
-      user: ${POSTGRES_USER}
       password: ${POSTGRES_PASSWORD}
+      port: ${POSTGRES_PORT}
       ssl:
         rejectUnauthorized: false
-auth:
-  environment: development
-  providers:
-    guest: {}
-    github:
-      development:
-        clientId: ${GITHUB_APP_CLIENT_ID:-${GITHUB_CLIENT_ID:-dummy-client-id}}
-        clientSecret: ${GITHUB_APP_CLIENT_SECRET:-${GITHUB_CLIENT_SECRET:-dummy-client-secret}}
-kubernetes:
-  serviceLocatorMethod:
-    type: 'multiTenant'
-  clusterLocatorMethods:
-    - type: 'config'
-      clusters:
-        - url: https://kubernetes.default.svc
-          name: kube-demo-eks
-          authProvider: 'serviceAccount'
-          skipTLSVerify: true
-          skipMetricsLookup: false
-integrations:
-  github:
-    - host: github.com
-      token: ${GITHUB_TOKEN}
-scaffolder:
-  defaultAuthor:
-    name: Backstage Scaffolder
-    email: platform-team@empresa.local
-  defaultCommitMessage: "feat: initial service scaffold from Backstage template"
+      user: ${POSTGRES_USER}
+  listen:
+    port: 7000
 catalog:
-  rules:
-    - allow: [Component, System, API, Resource, Location, Group, User, Template]
+  locations:
+  - target: /etc/backstage/catalog-entities.yaml
+    type: file
+  - target: https://github.com/cirodasilvaj/*/blob/main/catalog-info.yaml
+    type: github-discovery
+  - target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/catalog-info.yaml
+    type: url
+  - target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/python-app/catalog-info.yaml
+    type: url
+  - target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/dotnet-csharp-app/catalog-info.yaml
+    type: url
+  - target: https://github.com/cirodasilvaj/samba-ad-keycloak/blob/main/catalog-info.yaml
+    type: url
+  - target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/microservice-template/template.yaml
+    type: url
+  - target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/python-sonarqube-cicd/template.yaml
+    type: url
+  - target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/dotnet-sonarqube-cicd/template.yaml
+    type: url
+  - target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/jvm-springboot-sonarqube-cicd/template.yaml
+    type: url
+  - target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/nodejs-sonarqube-cicd/template.yaml
+    type: url
   providers:
     github:
       cirodasilvaj:
-        organization: 'cirodasilvaj'
-        catalogPath: '/catalog-info.yaml'
+        catalogPath: /catalog-info.yaml
         filters:
-          branch: 'main'
-          repository: '.*'
+          branch: main
+          repository: .*
+        organization: cirodasilvaj
         schedule:
-          frequency: { minutes: 15 }
-          timeout: { minutes: 3 }
-  locations:
-    - type: file
-      target: /etc/backstage/catalog-entities.yaml
-    - type: github-discovery
-      target: https://github.com/cirodasilvaj/*/blob/main/catalog-info.yaml
-    - type: url
-      target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/catalog-info.yaml
-    - type: url
-      target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/python-app/catalog-info.yaml
-    - type: url
-      target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/dotnet-csharp-app/catalog-info.yaml
-    - type: url
-      target: https://github.com/cirodasilvaj/samba-ad-keycloak/blob/main/catalog-info.yaml
-    - type: url
-      target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/microservice-template/template.yaml
-    - type: url
-      target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/python-sonarqube-cicd/template.yaml
-    - type: url
-      target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/dotnet-sonarqube-cicd/template.yaml
-    - type: url
-      target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/jvm-springboot-sonarqube-cicd/template.yaml
-    - type: url
-      target: https://github.com/cirodasilvaj/backstage-infra/blob/main/templates/nodejs-sonarqube-cicd/template.yaml
+          frequency:
+            minutes: 15
+          timeout:
+            minutes: 3
+  rules:
+  - allow:
+    - Component
+    - System
+    - API
+    - Resource
+    - Location
+    - Group
+    - User
+    - Template
+integrations:
+  github:
+  - host: github.com
+    token: ${GITHUB_TOKEN}
+kubernetes:
+  clusterLocatorMethods:
+  - clusters:
+    - authProvider: serviceAccount
+      name: kube-demo-eks
+      skipMetricsLookup: false
+      skipTLSVerify: true
+      url: https://kubernetes.default.svc
+    type: config
+  serviceLocatorMethod:
+    type: multiTenant
+organization:
+  name: kube-demo-2026
+scaffolder:
+  defaultAuthor:
+    email: platform-team@empresa.local
+    name: Backstage Scaffolder
+  defaultCommitMessage: 'feat: initial service scaffold from Backstage template'

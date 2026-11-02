@@ -3,139 +3,144 @@ kind: User
 metadata:
   name: guest
 spec:
+  memberOf:
+  - platform-team
   profile:
     displayName: Guest User
     email: guest@empresa.local
-  memberOf: [platform-team]
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Group
 metadata:
-  name: platform-team
   description: Platform Engineering & DevEx Team
+  name: platform-team
 spec:
-  type: team
   children: []
-  members: [guest]
+  members:
+  - guest
+  type: team
 ---
 apiVersion: backstage.io/v1alpha1
 kind: System
 metadata:
-  name: kube-demo-2026
   description: AWS EKS 1.35 Platform, GitOps, Observability & Developer Portal
+  name: kube-demo-2026
 spec:
   owner: platform-team
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
-  name: kube-demo-eks
-  description: AWS EKS 1.35 Kubernetes Cluster connected via In-Cluster ServiceAccount RBAC
   annotations:
     backstage.io/kubernetes-id: kube-demo-eks
     backstage.io/kubernetes-namespace: kube-system
+  description: AWS EKS 1.35 Kubernetes Cluster connected via In-Cluster ServiceAccount
+    RBAC
+  name: kube-demo-eks
 spec:
-  type: kubernetes-cluster
   owner: platform-team
   system: kube-demo-2026
+  type: kubernetes-cluster
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: backstage-portal
-  description: Backstage Internal Developer Portal backed by AWS RDS PostgreSQL and linked to EKS
   annotations:
     backstage.io/kubernetes-id: backstage
-    backstage.io/kubernetes-namespace: backstage
     backstage.io/kubernetes-label-selector: app=backstage
+    backstage.io/kubernetes-namespace: backstage
+  description: Backstage Internal Developer Portal backed by AWS RDS PostgreSQL and
+    linked to EKS
+  name: backstage-portal
 spec:
-  type: website
+  dependsOn:
+  - resource:default/kube-demo-eks
   lifecycle: production
   owner: platform-team
   system: kube-demo-2026
-  dependsOn:
-    - resource:default/kube-demo-eks
+  type: website
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: argocd
-  description: ArgoCD GitOps Continuous Delivery Controller on EKS
   annotations:
     backstage.io/kubernetes-id: argocd
-    backstage.io/kubernetes-namespace: argocd
     backstage.io/kubernetes-label-selector: app.kubernetes.io/part-of=argocd
+    backstage.io/kubernetes-namespace: argocd
+  description: ArgoCD GitOps Continuous Delivery Controller on EKS
+  name: argocd
 spec:
-  type: service
+  dependsOn:
+  - resource:default/kube-demo-eks
   lifecycle: production
   owner: platform-team
   system: kube-demo-2026
-  dependsOn:
-    - resource:default/kube-demo-eks
+  type: service
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: grafana
-  description: Grafana Observability Dashboards connected to Prometheus
   annotations:
     backstage.io/kubernetes-id: grafana
-    backstage.io/kubernetes-namespace: grafana
     backstage.io/kubernetes-label-selector: app.kubernetes.io/name=grafana
+    backstage.io/kubernetes-namespace: grafana
+  description: Grafana Observability Dashboards connected to Prometheus
+  name: grafana
 spec:
-  type: website
+  dependsOn:
+  - resource:default/kube-demo-eks
   lifecycle: production
   owner: platform-team
   system: kube-demo-2026
-  dependsOn:
-    - resource:default/kube-demo-eks
+  type: website
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: prometheus
-  description: Prometheus Metrics Server & Node Exporter on EKS
   annotations:
     backstage.io/kubernetes-id: prometheus
-    backstage.io/kubernetes-namespace: monitoring
     backstage.io/kubernetes-label-selector: app.kubernetes.io/name=prometheus
+    backstage.io/kubernetes-namespace: monitoring
+  description: Prometheus Metrics Server & Node Exporter on EKS
+  name: prometheus
 spec:
-  type: service
+  dependsOn:
+  - resource:default/kube-demo-eks
   lifecycle: production
   owner: platform-team
   system: kube-demo-2026
-  dependsOn:
-    - resource:default/kube-demo-eks
+  type: service
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: sonarqube
-  description: SonarQube QA & Security Scanner on EKS (OWASP Dependency-Check, FindSecBugs & YAML/K8s Security plugins)
   annotations:
     backstage.io/kubernetes-id: sonarqube
     backstage.io/kubernetes-namespace: sonarqube
+  description: SonarQube QA & Security Scanner on EKS (OWASP Dependency-Check, FindSecBugs
+    & YAML/K8s Security plugins)
+  name: sonarqube
 spec:
-  type: service
+  dependsOn:
+  - resource:default/kube-demo-eks
   lifecycle: production
   owner: platform-team
   system: kube-demo-2026
-  dependsOn:
-    - resource:default/kube-demo-eks
+  type: service
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: grafana
-  description: Grafana Observability UI receiving metrics from Prometheus on EKS
   annotations:
     backstage.io/kubernetes-id: grafana
     backstage.io/kubernetes-namespace: grafana
+  description: Grafana Observability UI receiving metrics from Prometheus on EKS
+  name: grafana
 spec:
-  type: service
+  dependsOn:
+  - component:default/prometheus-monitoring
+  - resource:default/kube-demo-eks
   lifecycle: production
   owner: platform-team
   system: kube-demo-2026
-  dependsOn:
-    - component:default/prometheus-monitoring
-    - resource:default/kube-demo-eks
+  type: service
