@@ -1,0 +1,31 @@
+{
+  "cluster_name": "kube-demo-eks",
+  "api_server": "https://kubernetes.default.svc",
+  "auth_provider": "serviceAccount",
+  "service_account": "backstage",
+  "namespace": "backstage",
+  "cluster_role": "backstage-kubernetes-deployer",
+  "deploy_permissions_enabled": true,
+  "allowed_verbs": ["get", "list", "watch", "create", "update", "patch", "delete"],
+  "argocd_gitops_deploy_enabled": true,
+  "connected": true,
+  "running_pods_count": 0,
+  "deployments_count": 39,
+  "namespaces_count": 0,
+  "kubernetes_version": {
+  "major": "1",
+  "minor": "35",
+  "emulationMajor": "1",
+  "emulationMinor": "35",
+  "minCompatibilityMajor": "1",
+  "minCompatibilityMinor": "34",
+  "gitVersion": "v1.35.9-eks-577a51e",
+  "gitCommit": "2a0fce3230f0deb44a476e2562dc1dc60c99ddc0",
+  "gitTreeState": "clean",
+  "buildDate": "2026-10-23T21:08:23Z",
+  "goVersion": "go1.26.10",
+  "compiler": "gc",
+  "platform": "linux/amd64"
+},
+  "updated_at": "2026-11-01T19:16:32Z"
+}

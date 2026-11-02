@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:799416476486:certificate/e1db1a7e-d66b-4137-a9cb-3839e2711001
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
+  creationTimestamp: "2026-11-01T21:13:52Z"
+  finalizers:
+  - service.kubernetes.io/load-balancer-cleanup
+  labels:
+    app: backstage
+  name: backstage-external
+  namespace: backstage
+  resourceVersion: "3725"
+  uid: c49e2078-12b0-40ef-813c-73f042eba469
+spec:
+  allocateLoadBalancerNodePorts: true
+  clusterIP: 172.20.186.198
+  clusterIPs:
+  - 172.20.186.198
+  externalTrafficPolicy: Cluster
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: http
+    nodePort: 32228
+    port: 80
+    protocol: TCP
+    targetPort: 7007
+  - name: https
+    nodePort: 31076
+    port: 443
+    protocol: TCP
+    targetPort: 7007
+  - name: backstage
+    nodePort: 31453
+    port: 7007
+    protocol: TCP
+    targetPort: 7007
+  selector:
+    app: backstage
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer:
+    ingress:
+    - hostname: ac49e207812b040ef813c73f042eba46-376367921.us-east-1.elb.amazonaws.com
