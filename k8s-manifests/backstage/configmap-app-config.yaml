@@ -139,11 +139,20 @@ data:
     kind: Component
     metadata:
       name: backstage-portal
+      title: Backstage Developer Portal
       description: Backstage Internal Developer Portal backed by AWS RDS PostgreSQL and linked to EKS
       annotations:
+        github.com/project-slug: cirodasilvaj/backstage-infra
         backstage.io/kubernetes-id: backstage
         backstage.io/kubernetes-namespace: backstage
         backstage.io/kubernetes-label-selector: app=backstage
+      links:
+        - url: http://backstage.799416476486.realhandsonlabs.net
+          title: Backstage Portal UI
+          icon: dashboard
+        - url: https://github.com/cirodasilvaj/backstage-infra
+          title: GitHub Infrastructure Repo
+          icon: github
     spec:
       type: website
       lifecycle: production
@@ -156,11 +165,20 @@ data:
     kind: Component
     metadata:
       name: argocd
+      title: ArgoCD GitOps
       description: ArgoCD GitOps Continuous Delivery Controller on EKS
       annotations:
+        github.com/project-slug: cirobessa/kube-demo-2026
         backstage.io/kubernetes-id: argocd
         backstage.io/kubernetes-namespace: argocd
         backstage.io/kubernetes-label-selector: app.kubernetes.io/part-of=argocd
+      links:
+        - url: https://argocd.799416476486.realhandsonlabs.net
+          title: ArgoCD Web Console (HTTPS ACM)
+          icon: sync
+        - url: https://github.com/cirobessa/kube-demo-2026
+          title: GitOps Cluster Repository
+          icon: github
     spec:
       type: service
       lifecycle: production
@@ -173,11 +191,20 @@ data:
     kind: Component
     metadata:
       name: grafana
-      description: Grafana Observability Dashboards connected to Prometheus
+      title: Grafana Observability
+      description: Grafana Observability Dashboards connected to Prometheus and Loki
       annotations:
+        github.com/project-slug: cirobessa/kube-demo-2026
         backstage.io/kubernetes-id: grafana
         backstage.io/kubernetes-namespace: grafana
         backstage.io/kubernetes-label-selector: app.kubernetes.io/name=grafana
+      links:
+        - url: http://grafana.799416476486.realhandsonlabs.net
+          title: Grafana Dashboards UI
+          icon: dashboard
+        - url: https://github.com/cirobessa/kube-demo-2026
+          title: Monitoring Config Repo
+          icon: github
     spec:
       type: website
       lifecycle: production
@@ -190,11 +217,20 @@ data:
     kind: Component
     metadata:
       name: prometheus
+      title: Prometheus Monitoring
       description: Prometheus Metrics Server & Node Exporter on EKS
       annotations:
+        github.com/project-slug: cirobessa/kube-demo-2026
         backstage.io/kubernetes-id: prometheus
         backstage.io/kubernetes-namespace: monitoring
         backstage.io/kubernetes-label-selector: app.kubernetes.io/name=prometheus
+      links:
+        - url: http://prometheus.799416476486.realhandsonlabs.net
+          title: Prometheus Web UI
+          icon: gauge
+        - url: https://github.com/cirobessa/kube-demo-2026
+          title: Prometheus Manifests
+          icon: github
     spec:
       type: service
       lifecycle: production
@@ -207,33 +243,25 @@ data:
     kind: Component
     metadata:
       name: sonarqube
+      title: SonarQube Code Quality
       description: SonarQube QA & Security Scanner on EKS (OWASP Dependency-Check, FindSecBugs & YAML/K8s Security plugins)
       annotations:
+        github.com/project-slug: cirobessa/kube-demo-2026
         backstage.io/kubernetes-id: sonarqube
         backstage.io/kubernetes-namespace: sonarqube
+      links:
+        - url: http://sonarqube.799416476486.realhandsonlabs.net
+          title: SonarQube Dashboard UI
+          icon: check
+        - url: https://github.com/cirobessa/kube-demo-2026
+          title: SonarQube QA Config
+          icon: github
     spec:
       type: service
       lifecycle: production
       owner: platform-team
       system: kube-demo-2026
       dependsOn:
-        - resource:default/kube-demo-eks
-    ---
-    apiVersion: backstage.io/v1alpha1
-    kind: Component
-    metadata:
-      name: grafana
-      description: Grafana Observability UI receiving metrics from Prometheus on EKS
-      annotations:
-        backstage.io/kubernetes-id: grafana
-        backstage.io/kubernetes-namespace: grafana
-    spec:
-      type: service
-      lifecycle: production
-      owner: platform-team
-      system: kube-demo-2026
-      dependsOn:
-        - component:default/prometheus-monitoring
         - resource:default/kube-demo-eks
   schema.sql: |
     --
