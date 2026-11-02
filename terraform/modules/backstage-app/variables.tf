@@ -93,6 +93,13 @@ variable "github_app_client_secret" {
   sensitive   = true
 }
 
+variable "github_app_webhook_secret" {
+  description = "GitHub App Webhook Secret"
+  type        = string
+  default     = "development-webhook-secret"
+  sensitive   = true
+}
+
 variable "github_app_private_key" {
   description = "GitHub App RSA Private Key PEM"
   type        = string

@@ -102,10 +102,12 @@ resource "kubernetes_secret_v1" "backstage_github_credentials" {
     app_id                   = var.github_app_id
     client_id                = var.github_app_client_id
     client_secret            = var.github_app_client_secret
+    webhook_secret           = var.github_app_webhook_secret
     private_key              = var.github_app_private_key
     GITHUB_APP_APP_ID        = var.github_app_id
     GITHUB_APP_CLIENT_ID     = var.github_app_client_id
     GITHUB_APP_CLIENT_SECRET = var.github_app_client_secret
+    GITHUB_APP_WEBHOOK_SECRET= var.github_app_webhook_secret
     GITHUB_APP_PRIVATE_KEY   = var.github_app_private_key
   }
 

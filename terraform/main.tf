@@ -39,6 +39,11 @@ data "aws_ssm_parameter" "github_client_secret" {
   with_decryption = true
 }
 
+data "aws_ssm_parameter" "github_webhook_secret" {
+  name            = "/backstage/github/webhook_secret"
+  with_decryption = true
+}
+
 data "aws_ssm_parameter" "github_private_key" {
   name            = "/backstage/github/private_key"
   with_decryption = true
@@ -68,6 +73,7 @@ module "backstage_app" {
   github_app_id            = data.aws_ssm_parameter.github_app_id.value
   github_app_client_id     = data.aws_ssm_parameter.github_client_id.value
   github_app_client_secret = data.aws_ssm_parameter.github_client_secret.value
+  github_app_webhook_secret= data.aws_ssm_parameter.github_webhook_secret.value
   github_app_private_key   = data.aws_ssm_parameter.github_private_key.value
   acm_certificate_arn      = local.has_lab_zone ? aws_acm_certificate_validation.lab_cert[0].certificate_arn : ""
 
