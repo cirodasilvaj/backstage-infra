@@ -132,16 +132,19 @@ jobs:
           CLIENT_ID=$(aws ssm get-parameter --name "/backstage/github/client_id" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
           CLIENT_SECRET=$(aws ssm get-parameter --name "/backstage/github/client_secret" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
           PRIVATE_KEY=$(aws ssm get-parameter --name "/backstage/github/private_key" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+          WEBHOOK_SECRET=$(aws ssm get-parameter --name "/backstage/github/webhook_secret" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "development-webhook-secret")
           kubectl create secret generic backstage-github-credentials \
             --namespace backstage \
             --from-literal=token="${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}" \
             --from-literal=app_id="$APP_ID" \
             --from-literal=client_id="$CLIENT_ID" \
             --from-literal=client_secret="$CLIENT_SECRET" \
+            --from-literal=webhook_secret="$WEBHOOK_SECRET" \
             --from-literal=private_key="$PRIVATE_KEY" \
             --from-literal=GITHUB_APP_APP_ID="$APP_ID" \
             --from-literal=GITHUB_APP_CLIENT_ID="$CLIENT_ID" \
             --from-literal=GITHUB_APP_CLIENT_SECRET="$CLIENT_SECRET" \
+            --from-literal=GITHUB_APP_WEBHOOK_SECRET="$WEBHOOK_SECRET" \
             --from-literal=GITHUB_APP_PRIVATE_KEY="$PRIVATE_KEY" \
             --dry-run=client -o yaml | kubectl apply -f -
           kubectl apply -f ../k8s-manifests/sonarqube/
