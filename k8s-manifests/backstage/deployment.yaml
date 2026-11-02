@@ -142,6 +142,7 @@ spec:
               mountPath: /dumps
         - name: backstage
           image: roadiehq/community-backstage-image:latest
+          command: ["node"]
           args:
             - "packages/backend"
             - "--config"
