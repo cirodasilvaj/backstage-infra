@@ -4,3 +4,7 @@ terraform.tfstate
 terraform.tfstate.*
 *.tfvars
 !*.tfvars.example
+
+# Local snapshots and archives
+backup/snapshots/
+*.tar.gz

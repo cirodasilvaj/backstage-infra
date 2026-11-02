@@ -34,8 +34,8 @@ data:
         guest: {}
         github:
           development:
-            clientId: ${GITHUB_CLIENT_ID:-dummy-client-id}
-            clientSecret: ${GITHUB_CLIENT_SECRET:-dummy-client-secret}
+            clientId: ${GITHUB_APP_CLIENT_ID:-${GITHUB_CLIENT_ID:-dummy-client-id}}
+            clientSecret: ${GITHUB_APP_CLIENT_SECRET:-${GITHUB_CLIENT_SECRET:-dummy-client-secret}}
     kubernetes:
       serviceLocatorMethod:
         type: 'multiTenant'
@@ -59,9 +59,22 @@ data:
     catalog:
       rules:
         - allow: [Component, System, API, Resource, Location, Group, User, Template]
+      providers:
+        github:
+          cirodasilvaj:
+            organization: 'cirodasilvaj'
+            catalogPath: '/catalog-info.yaml'
+            filters:
+              branch: 'main'
+              repository: '.*'
+            schedule:
+              frequency: { minutes: 15 }
+              timeout: { minutes: 3 }
       locations:
         - type: file
           target: /etc/backstage/catalog-entities.yaml
+        - type: github-discovery
+          target: https://github.com/cirodasilvaj/*/blob/main/catalog-info.yaml
         - type: url
           target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/catalog-info.yaml
         - type: url

@@ -159,6 +159,30 @@ spec:
                   name: backstage-github-credentials
                   key: token
                   optional: true
+            - name: GITHUB_APP_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-github-credentials
+                  key: client_id
+                  optional: true
+            - name: GITHUB_APP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-github-credentials
+                  key: client_secret
+                  optional: true
+            - name: GITHUB_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-github-credentials
+                  key: app_id
+                  optional: true
+            - name: GITHUB_APP_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-github-credentials
+                  key: private_key
+                  optional: true
             - name: K8S_SA_TOKEN
               valueFrom:
                 secretKeyRef:
