@@ -1,42 +1,68 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Sincronizador CLI: Route 53 + Emissão Automática de Certificado SSL/TLS ACM (HTTPS)
+# CLI Synchronizer: Route 53 DNS + Automated ACM SSL/TLS Wildcard Certificate
 # ==============================================================================
 set -euo pipefail
 
-echo "🔍 Identificando Conta AWS ativa e Hosted Zone no Route 53..."
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "Desconhecida")
-echo "🏢 Conta AWS identificada: ${ACCOUNT_ID}"
+echo "🔍 Identifying active AWS Account and Hosted Zone in Route 53..."
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "Unknown")
+echo "🏢 Active AWS Account: ${ACCOUNT_ID}"
 
-ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[?contains(Name, 'realhandsonlabs.net') && !Config.PrivateZone] | [0]" --output json 2>/dev/null || true)
+# 1. Discover public Hosted Zone
+ZONE_INFO=""
 
-if [ "$ZONE_INFO" = "null" ] || [ -z "$ZONE_INFO" ]; then
-  echo "⚠️ Nenhuma Hosted Zone pública terminando com 'realhandsonlabs.net' encontrada."
+# Strategy A: jq filter on Route 53 output
+if command -v jq >/dev/null 2>&1; then
+  ALL_ZONES=$(aws route53 list-hosted-zones --output json 2>/dev/null || true)
+  if [ -n "$ALL_ZONES" ]; then
+    ZONE_INFO=$(echo "$ALL_ZONES" | jq -c '[.HostedZones[] | select((.Config.PrivateZone == false or .Config.PrivateZone == null) and (.Name | contains("realhandsonlabs.net")))] | first // empty' 2>/dev/null || true)
+    if [ -z "$ZONE_INFO" ] || [ "$ZONE_INFO" = "null" ]; then
+      ZONE_INFO=$(echo "$ALL_ZONES" | jq -c '[.HostedZones[] | select(.Config.PrivateZone == false or .Config.PrivateZone == null)] | first // empty' 2>/dev/null || true)
+    fi
+  fi
+fi
+
+# Strategy B: JMESPath filter fallback
+if [ -z "$ZONE_INFO" ] || [ "$ZONE_INFO" = "null" ]; then
+  ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[?contains(Name, 'realhandsonlabs.net') && Config.PrivateZone == \`false\`] | [0]" --output json 2>/dev/null || true)
+fi
+
+if [ -z "$ZONE_INFO" ] || [ "$ZONE_INFO" = "null" ]; then
+  ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[?Config.PrivateZone == \`false\`] | [0]" --output json 2>/dev/null || true)
+fi
+
+# Strategy C: Account ID match fallback
+if [ -z "$ZONE_INFO" ] || [ "$ZONE_INFO" = "null" ]; then
+  ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[?contains(Name, '${ACCOUNT_ID}')] | [0]" --output json 2>/dev/null || true)
+fi
+
+if [ -z "$ZONE_INFO" ] || [ "$ZONE_INFO" = "null" ]; then
+  echo "⚠️ No public Hosted Zone found in Route 53."
   exit 1
 fi
 
 ZONE_ID=$(echo "$ZONE_INFO" | jq -r '.Id' | sed 's|/hostedzone/||')
 ZONE_NAME=$(echo "$ZONE_INFO" | jq -r '.Name' | sed 's/\.$//')
 
-echo "✅ Zona Route 53 encontrada: ${ZONE_NAME} (ID: ${ZONE_ID})"
+echo "✅ Route 53 Hosted Zone found: ${ZONE_NAME} (ID: ${ZONE_ID})"
 
 # ------------------------------------------------------------------------------
-# Etapa ACM: Emissão e Validação Automática de Certificado Wildcard SSL/TLS
+# ACM Step: Wildcard SSL/TLS Certificate Request and DNS Validation
 # ------------------------------------------------------------------------------
-echo "🔐 Verificando Certificado SSL/TLS Wildcard (*.${ZONE_NAME}) no AWS ACM..."
+echo "🔐 Checking Wildcard SSL/TLS Certificate (*.${ZONE_NAME}) in AWS ACM..."
 CERT_ARN=$(aws acm list-certificates --query "CertificateSummaryList[?DomainName=='*.${ZONE_NAME}'].CertificateArn | [0]" --output text 2>/dev/null || true)
 
 if [ "$CERT_ARN" = "None" ] || [ -z "$CERT_ARN" ]; then
-  echo "🚀 Solicitando novo Certificado Wildcard no AWS Certificate Manager (ACM)..."
+  echo "🚀 Requesting new Wildcard Certificate in AWS Certificate Manager (ACM)..."
   CERT_ARN=$(aws acm request-certificate \
     --domain-name "*.${ZONE_NAME}" \
     --subject-alternative-names "${ZONE_NAME}" \
     --validation-method DNS \
-    --tags Key=Project,Value=backstage-infra Key=Environment,Value=sandbox Key=ManagedBy,Value=cli Key=CostCenter,Value=devops-platform-cloud \
+    --tags Key=Project,Value=apps-demo-2026 Key=Environment,Value=sandbox Key=ManagedBy,Value=cli Key=CostCenter,Value=devops-platform-cloud \
     --query CertificateArn --output text)
-  echo "✅ Certificado ACM solicitado: ${CERT_ARN}"
+  echo "✅ ACM Certificate requested: ${CERT_ARN}"
 
-  echo "⏳ Aguardando registros de validação DNS gerados pelo ACM..."
+  echo "⏳ Waiting for ACM DNS validation records to become available..."
   sleep 4
 fi
 
@@ -44,7 +70,7 @@ VAL_NAME=$(aws acm describe-certificate --certificate-arn "$CERT_ARN" --query "C
 VAL_VALUE=$(aws acm describe-certificate --certificate-arn "$CERT_ARN" --query "Certificate.DomainValidationOptions[0].ResourceRecord.Value" --output text 2>/dev/null || true)
 
 if [ -n "$VAL_NAME" ] && [ "$VAL_NAME" != "None" ]; then
-  echo "📝 Inserindo CNAME de validação do ACM no Route 53..."
+  echo "📝 Publishing ACM validation CNAME record to Route 53..."
   echo "   ${VAL_NAME} -> ${VAL_VALUE}"
   aws route53 change-resource-record-sets --hosted-zone-id "$ZONE_ID" --change-batch "{
     \"Comment\": \"ACM DNS Validation for *.${ZONE_NAME}\",
@@ -58,17 +84,13 @@ if [ -n "$VAL_NAME" ] && [ "$VAL_NAME" != "None" ]; then
       }
     }]
   }" >/dev/null || true
-  echo "✅ Registro de validação ACM publicado no Route 53."
+  echo "✅ ACM validation record published to Route 53."
 fi
 
 # ------------------------------------------------------------------------------
-# Etapa CNAMEs dos Serviços Kubernetes
+# Demo Apps CNAME Step
 # ------------------------------------------------------------------------------
 SERVICES=(
-  "backstage:backstage:backstage-external"
-  "grafana:grafana:grafana-external"
-  "argocd:argocd:argocd-external"
-  "sonarqube:sonarqube:sonarqube-external"
   "python:apps-demo:python-app"
   "dotnet:apps-demo:dotnet-csharp-app"
 )
@@ -82,16 +104,16 @@ for item in "${SERVICES[@]}"; do
   
   if [ -n "$ELB_HOSTNAME" ]; then
     FQDN="${SUBDOMAIN}.${ZONE_NAME}"
-    echo "🔗 Associando ${FQDN} -> ${ELB_HOSTNAME}"
+    echo "🔗 Associating ${FQDN} -> ${ELB_HOSTNAME}"
     CHANGES+=("{\"Action\":\"UPSERT\",\"ResourceRecordSet\":{\"Name\":\"${FQDN}\",\"Type\":\"CNAME\",\"TTL\":60,\"ResourceRecords\":[{\"Value\":\"${ELB_HOSTNAME}\"}]}}")
   else
-    echo "⏳ Serviço '${SVC_NAME}' no namespace '${NAMESPACE}' ainda não possui LoadBalancer pronto no EKS."
+    echo "⏳ Service '${SVC_NAME}' in namespace '${NAMESPACE}' does not have an external LoadBalancer ready yet."
   fi
 done
 
 if [ ${#CHANGES[@]} -gt 0 ]; then
   CHANGES_JSON=$(IFS=,; echo "${CHANGES[*]}")
-  BATCH_JSON="{\"Comment\":\"Auto-sync EKS endpoints to Route 53 with ACM SSL\",\"Changes\":[${CHANGES_JSON}]}"
+  BATCH_JSON="{\"Comment\":\"Auto-sync Apps endpoints to Route 53 with ACM SSL\",\"Changes\":[${CHANGES_JSON}]}"
   
   aws route53 change-resource-record-sets \
     --hosted-zone-id "$ZONE_ID" \
@@ -99,13 +121,13 @@ if [ ${#CHANGES[@]} -gt 0 ]; then
     
   echo ""
   echo "=============================================================================="
-  echo "🎉 Endpoints Route 53 & Certificado ACM SSL/TLS configurados com sucesso!"
+  echo "🎉 Apps Route 53 DNS & ACM SSL/TLS certificate configured successfully!"
   echo "=============================================================================="
   echo "🔒 ACM Certificate ARN: ${CERT_ARN}"
-  echo "🌐 Endpoints com suporte a HTTP e HTTPS:"
+  echo "🌐 Available HTTPS and HTTP endpoints:"
   for item in "${SERVICES[@]}"; do
     IFS=":" read -r SUBDOMAIN _ _ <<< "$item"
-    echo " 👉 https://${SUBDOMAIN}.${ZONE_NAME}  (ou http://${SUBDOMAIN}.${ZONE_NAME})"
+    echo " 👉 https://${SUBDOMAIN}.${ZONE_NAME}  (or http://${SUBDOMAIN}.${ZONE_NAME})"
   done
   echo "=============================================================================="
 fi

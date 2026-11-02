@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Sincroniza o LoadBalancer da aplicacao com o Route 53 e ACM SSL/TLS
+# Sync application LoadBalancer with Route 53 DNS and ACM SSL/TLS
 # ==============================================================================
 set -euo pipefail
 
@@ -8,30 +8,44 @@ APP_NAME="${{ values.component_id }}"
 SVC_NAME="${APP_NAME}-external"
 NAMESPACE="apps-demo"
 
-echo "🔍 Buscando Hosted Zone pública no Route 53..."
-ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[?contains(Name, 'realhandsonlabs.net') && !Config.PrivateZone] | [0]" --output json 2>/dev/null || true)
-if [ "$ZONE_INFO" = "null" ] || [ -z "$ZONE_INFO" ]; then
-  ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[!Config.PrivateZone] | [0]" --output json 2>/dev/null || true)
+echo "🔍 Searching for public Hosted Zone in Route 53..."
+ZONE_INFO=""
+if command -v jq >/dev/null 2>&1; then
+  ALL_ZONES=$(aws route53 list-hosted-zones --output json 2>/dev/null || true)
+  if [ -n "$ALL_ZONES" ]; then
+    ZONE_INFO=$(echo "$ALL_ZONES" | jq -c '[.HostedZones[] | select((.Config.PrivateZone == false or .Config.PrivateZone == null) and (.Name | contains("realhandsonlabs.net")))] | first // empty' 2>/dev/null || true)
+    if [ -z "$ZONE_INFO" ] || [ "$ZONE_INFO" = "null" ]; then
+      ZONE_INFO=$(echo "$ALL_ZONES" | jq -c '[.HostedZones[] | select(.Config.PrivateZone == false or .Config.PrivateZone == null)] | first // empty' 2>/dev/null || true)
+    fi
+  fi
 fi
 
-if [ "$ZONE_INFO" = "null" ] || [ -z "$ZONE_INFO" ]; then
-  echo "⚠️ Nenhuma Hosted Zone pública encontrada."
+if [ -z "$ZONE_INFO" ] || [ "$ZONE_INFO" = "null" ]; then
+  ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[?contains(Name, 'realhandsonlabs.net') && Config.PrivateZone == \`false\`] | [0]" --output json 2>/dev/null || true)
+fi
+
+if [ -z "$ZONE_INFO" ] || [ "$ZONE_INFO" = "null" ]; then
+  ZONE_INFO=$(aws route53 list-hosted-zones --query "HostedZones[?Config.PrivateZone == \`false\`] | [0]" --output json 2>/dev/null || true)
+fi
+
+if [ -z "$ZONE_INFO" ] || [ "$ZONE_INFO" = "null" ]; then
+  echo "⚠️ No public Hosted Zone found in Route 53."
   exit 0
 fi
 
 ZONE_ID=$(echo "$ZONE_INFO" | jq -r '.Id' | sed 's|/hostedzone/||')
 ZONE_NAME=$(echo "$ZONE_INFO" | jq -r '.Name' | sed 's/\.$//')
 
-echo "⏳ Obtendo hostname do LoadBalancer para '${SVC_NAME}'..."
+echo "⏳ Getting LoadBalancer hostname for '${SVC_NAME}'..."
 ELB_HOSTNAME=$(kubectl get svc "$SVC_NAME" -n "$NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
 
 if [ -z "$ELB_HOSTNAME" ]; then
-  echo "⏳ LoadBalancer ainda provisionando no EKS. Aguarde alguns instantes."
+  echo "⏳ LoadBalancer is still provisioning in EKS. Please wait."
   exit 0
 fi
 
 FQDN="${APP_NAME}.${ZONE_NAME}"
-echo "🔗 Mapeando ${FQDN} -> ${ELB_HOSTNAME}"
+echo "🔗 Mapping ${FQDN} -> ${ELB_HOSTNAME}"
 
 aws route53 change-resource-record-sets \
   --hosted-zone-id "$ZONE_ID" \
@@ -48,4 +62,4 @@ aws route53 change-resource-record-sets \
     }]
   }" >/dev/null
 
-echo "🎉 Aplicação acessível em https://${FQDN}"
+echo "🎉 Application accessible at https://${FQDN} (or http://${FQDN})"
