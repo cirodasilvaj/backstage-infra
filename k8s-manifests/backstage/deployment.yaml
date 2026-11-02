@@ -86,8 +86,11 @@ spec:
               until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER"; do
                 sleep 5
               done
-              echo "Applying initial schema and Kubernetes cluster seed data to RDS..."
-              psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /etc/backstage-db/schema.sql || true
+              echo "Waiting for Backstage Knex schema migrations to be applied..."
+              until psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1 FROM knex_migrations WHERE name = '20210622104022_refresh_state_location_key.js';" 2>/dev/null | grep -q 1; do
+                sleep 5
+              done
+              echo "Backstage database migrations confirmed ready."
 
               SA_TOKEN_PATH="/var/run/secrets/kubernetes.io/serviceaccount/token"
               K8S_API="https://kubernetes.default.svc"
