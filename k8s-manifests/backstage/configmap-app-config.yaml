@@ -51,8 +51,8 @@ data:
       github:
         - host: github.com
           apps:
-            - appId: ${GITHUB_APP_APP_ID}
-              clientId: ${GITHUB_APP_CLIENT_ID}
+            - appId: 5586387
+              clientId: Iv23liISZZ2QWobzor9w
               clientSecret: ${GITHUB_APP_CLIENT_SECRET}
               webhookSecret: ${GITHUB_APP_WEBHOOK_SECRET}
               privateKey: ${GITHUB_APP_PRIVATE_KEY}
