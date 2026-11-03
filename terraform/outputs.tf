@@ -162,6 +162,7 @@ output "backstage_basic_auth_user" {
 output "backstage_basic_auth_password" {
   description = "Basic authentication password for the Backstage web UI"
   value       = module.backstage_app.basic_auth_password
+  sensitive   = true
 }
 
 output "backstage_db_dump_download_url" {
@@ -177,11 +178,13 @@ output "backstage_db_schema_download_url" {
 output "backstage_db_dump_curl_command" {
   description = "Run this command locally to download the live RDS PostgreSQL dump (.sql)"
   value       = "curl -u ${module.backstage_app.basic_auth_user}:${module.backstage_app.basic_auth_password} -o backstage-rds-dump.sql ${module.backstage_app.db_dump_download_url}"
+  sensitive   = true
 }
 
 output "backstage_db_restore_command" {
   description = "Command to restore the downloaded SQL dump into RDS on a new installation"
   value       = "PGPASSWORD='${var.rds_db_password}' psql -h ${module.rds.address} -p ${module.rds.port} -U ${module.rds.username} -d ${module.rds.db_name} -f backstage-rds-dump.sql"
+  sensitive   = true
 }
 
 output "backstage_k8s_cluster_status_url" {
@@ -258,6 +261,7 @@ output "grafana_admin_user" {
 output "grafana_admin_password" {
   description = "Admin password for the Grafana Web UI"
   value       = module.grafana.admin_password
+  sensitive   = true
 }
 
 output "grafana_admin_password_command" {
@@ -323,6 +327,7 @@ output "sonarqube_admin_user" {
 output "sonarqube_admin_password" {
   description = "Admin password configured for the SonarQube Web UI (initial default before UP is 'admin')"
   value       = module.sonarqube.admin_password
+  sensitive   = true
 }
 
 output "sonarqube_security_plugins_installed" {

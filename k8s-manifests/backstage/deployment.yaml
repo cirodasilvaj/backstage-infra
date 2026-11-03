@@ -160,12 +160,6 @@ spec:
             - "--config"
             - "/etc/backstage/app-config.k8s.yaml"
           env:
-            - name: GITHUB_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: backstage-github-credentials
-                  key: token
-                  optional: true
             - name: GITHUB_APP_CLIENT_ID
               valueFrom:
                 secretKeyRef:

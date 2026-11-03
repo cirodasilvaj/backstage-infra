@@ -77,7 +77,7 @@ test_endpoint "Grafana Health" "${GRAFANA_URL}/api/health" "ok" "" || true
 ARGO_LB=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
 ARGO_URL="https://${ARGO_LB}"
 if [ -n "$ZONE_NAME" ]; then
-  ARGO_URL="https://argocd.${ZONE_NAME}"
+  ARGO_URL="http://argocd.${ZONE_NAME}"
 fi
 test_endpoint "ArgoCD Web Console" "${ARGO_URL}" "Argo CD" "" || true
 
