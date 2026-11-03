@@ -73,19 +73,22 @@ data:
               branch: 'main'
               repository: '.*'
             schedule:
-              frequency: { minutes: 15 }
-              timeout: { minutes: 3 }
+              frequency: { hours: 2 }
+              timeout: { minutes: 15 }
+              initialDelay: { seconds: 15 }
       locations:
         - type: file
           target: /etc/backstage/catalog-entities.yaml
-        - type: github-discovery
-          target: https://github.com/cirodasilvaj/*/blob/main/catalog-info.yaml
         - type: url
           target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/catalog-info.yaml
         - type: url
           target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/python-app/catalog-info.yaml
         - type: url
           target: https://github.com/cirodasilvaj/apps-demo-2026/blob/main/dotnet-csharp-app/catalog-info.yaml
+        - type: url
+          target: https://github.com/cirodasilvaj/bkstg-made-nodejs-demo22/blob/main/catalog-info.yaml
+        - type: url
+          target: https://github.com/cirodasilvaj/scaffolder-starter-microservice/blob/main/catalog-info.yaml
         - type: url
           target: https://github.com/cirodasilvaj/samba-ad-keycloak/blob/main/catalog-info.yaml
         - type: url
@@ -465,6 +468,16 @@ data:
         return 200 "ok\n";
       }
 
+      location = /api/catalog/webhook {
+        auth_basic off;
+        proxy_pass http://127.0.0.1:8088/webhook;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+
       location = /backstage-rds-dump.sql {
         auth_basic "Backstage Developer Portal";
         auth_basic_user_file /etc/nginx/.htpasswd;
@@ -609,3 +622,146 @@ data:
       </main>
     </body>
     </html>
+  webhook-server.js: |
+    const http = require('http');
+    const crypto = require('crypto');
+    const { Pool } = require('pg');
+
+    const PORT = 8088;
+    const WEBHOOK_SECRET = process.env.GITHUB_APP_WEBHOOK_SECRET || 'development-webhook-secret';
+    const BACKSTAGE_API = 'http://127.0.0.1:7000';
+
+    const pool = new Pool({
+      host: process.env.POSTGRES_HOST,
+      port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
+      user: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
+      database: process.env.POSTGRES_DB,
+      ssl: { rejectUnauthorized: false }
+    });
+
+    function verifySignature(payload, signature) {
+      if (!signature) return true;
+      try {
+        const hmac = crypto.createHmac('sha256', WEBHOOK_SECRET);
+        const digest = 'sha256=' + hmac.update(payload).digest('hex');
+        return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature));
+      } catch (err) {
+        return false;
+      }
+    }
+
+    const server = http.createServer((req, res) => {
+      if (req.method === 'GET' && req.url === '/healthz') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ status: 'ok', service: 'backstage-webhook-handler' }));
+      }
+
+      if (req.method !== 'POST' || req.url !== '/webhook') {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'not_found' }));
+      }
+
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        const signature = req.headers['x-hub-signature-256'];
+        const event = req.headers['x-github-event'] || 'push';
+
+        if (signature && !verifySignature(body, signature)) {
+          console.warn('[Webhook] Invalid signature received');
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'invalid_signature' }));
+        }
+
+        if (event === 'ping') {
+          console.log('[Webhook] Ping received from GitHub');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ message: 'pong' }));
+        }
+
+        let payload;
+        try {
+          payload = JSON.parse(body);
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'invalid_json' }));
+        }
+
+        const repoName = payload.repository && (payload.repository.name || payload.repository.full_name);
+        console.log(`[Webhook] Event '${event}' received for repository: ${repoName}`);
+
+        let relevantChange = false;
+        const modifiedFiles = [];
+        if (payload.commits && Array.isArray(payload.commits)) {
+          for (const commit of payload.commits) {
+            for (const file of [...(commit.added || []), ...(commit.modified || []), ...(commit.removed || [])]) {
+              if (file.toLowerCase().includes('catalog-info.yaml') || file.toLowerCase().includes('template.yaml')) {
+                relevantChange = true;
+                modifiedFiles.push(file);
+              }
+            }
+          }
+        } else {
+          relevantChange = true;
+        }
+
+        if (!relevantChange) {
+          console.log(`[Webhook] Skipped refresh for ${repoName}: no catalog-info.yaml or template.yaml files modified in this push.`);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({
+            status: 'ok',
+            action: 'skipped',
+            repository: repoName,
+            reason: 'no catalog-info.yaml modified'
+          }));
+        }
+
+        console.log(`[Webhook] Relevant changes detected in ${repoName} (${modifiedFiles.join(', ')}). Triggering catalog refresh...`);
+
+        try {
+          const query = `
+            UPDATE refresh_state
+            SET next_update_at = now()
+            WHERE location_key LIKE $1 OR unprocessed_entity LIKE $1 OR entity_ref LIKE $1;
+          `;
+          const filter = `%${repoName}%`;
+          const dbRes = await pool.query(query, [filter]);
+          console.log(`[Webhook] Updated ${dbRes.rowCount} entities in refresh_state to refresh immediately for ${repoName}`);
+
+          if (payload.repository && payload.repository.html_url) {
+            const catalogTarget = `${payload.repository.html_url}/blob/main/catalog-info.yaml`;
+            const postData = JSON.stringify({ type: 'url', target: catalogTarget });
+            const postReq = http.request(`${BACKSTAGE_API}/api/catalog/locations`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+              }
+            }, apiRes => {
+              console.log(`[Webhook] Catalog location registration status: ${apiRes.statusCode}`);
+            });
+            postReq.on('error', err => console.warn('[Webhook] Error calling catalog locations API:', err.message));
+            postReq.write(postData);
+            postReq.end();
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({
+            status: 'ok',
+            action: 'catalog_refreshed',
+            repository: repoName,
+            modified_files: modifiedFiles,
+            refreshed_entities_count: dbRes.rowCount
+          }));
+        } catch (err) {
+          console.error('[Webhook] Error updating refresh_state:', err);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+    });
+
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`[Webhook Server] Listening on port ${PORT}`);
+    });
