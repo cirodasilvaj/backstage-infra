@@ -155,6 +155,7 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
+              export NODE_PATH=/usr/src/app/node_modules
               node /etc/backstage/webhook-server.js &
               exec node packages/backend --config app-config.yaml --config /etc/backstage/app-config.k8s.yaml
           env:
