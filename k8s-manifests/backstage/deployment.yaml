@@ -92,6 +92,13 @@ spec:
               done
               echo "Backstage database migrations confirmed ready."
 
+              ENTITIES_COUNT=$(psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -c "SELECT count(*) FROM final_entities;" 2>/dev/null | tr -d ' ' || echo 0)
+              if [ "$ENTITIES_COUNT" = "0" ] && [ -f /etc/backstage-db/schema.sql ]; then
+                echo "Fresh database detected with 0 catalog entities. Restoring initial seed dump from /etc/backstage-db/schema.sql..."
+                psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /etc/backstage-db/schema.sql 2>/dev/null || true
+                echo "Initial seed dump restoration complete."
+              fi
+
               SA_TOKEN_PATH="/var/run/secrets/kubernetes.io/serviceaccount/token"
               K8S_API="https://kubernetes.default.svc"
 
