@@ -85,7 +85,8 @@ variable "rds_db_username" {
 variable "rds_db_password" {
   description = "Master password for Backstage RDS PostgreSQL"
   type        = string
-  default     = "BackstageRds2026!"
+  default     = null
+  sensitive   = true
 }
 
 variable "grafana_namespace" {

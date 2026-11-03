@@ -29,9 +29,21 @@ if [ ! -f "$PEM_FILE" ]; then
   PEM_FILE="/home/ciro/backstate-infra/backup/snapshots/20261103_001929/github-secrets/backstage-devex-cirodasilvaj.private-key.pem"
 fi
 
+# Load GitHub App Client Secret from environment or off-repo vault
+if [ -z "${GITHUB_APP_CLIENT_SECRET:-}" ]; then
+  for vf in     "/home/ciro/platform-backup-vault/snapshots"/*/secrets/github-app/github-app-credentials.env     "$HOME/platform-backup-vault/snapshots"/*/secrets/github-app/github-app-credentials.env; do
+    if [ -f "$vf" ]; then
+      GITHUB_APP_CLIENT_SECRET="$(grep -E '^GITHUB_APP_CLIENT_SECRET=' "$vf" | head -n1 | cut -d= -f2-)"
+      [ -n "$GITHUB_APP_CLIENT_SECRET" ] && break
+    fi
+  done
+fi
+
 aws ssm put-parameter --name "/backstage/github/app_id" --value "5586387" --type "SecureString" --overwrite --region "$REGION" || true
 aws ssm put-parameter --name "/backstage/github/client_id" --value "Iv23liISZZ2QWobzor9w" --type "SecureString" --overwrite --region "$REGION" || true
-aws ssm put-parameter --name "/backstage/github/client_secret" --value "3a52eeec2608264be71da49ef1ca2e1e814d2040" --type "SecureString" --overwrite --region "$REGION" || true
+if [ -n "${GITHUB_APP_CLIENT_SECRET:-}" ]; then
+  aws ssm put-parameter --name "/backstage/github/client_secret" --value "$GITHUB_APP_CLIENT_SECRET" --type "SecureString" --overwrite --region "$REGION" || true
+fi
 aws ssm put-parameter --name "/backstage/github/webhook_secret" --value "development-webhook-secret" --type "SecureString" --overwrite --region "$REGION" || true
 aws ssm put-parameter --name "/backstage/github/installation_id" --value "177993548" --type "SecureString" --overwrite --region "$REGION" || true
 if [ -f "$PEM_FILE" ]; then

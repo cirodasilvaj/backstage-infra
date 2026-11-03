@@ -155,7 +155,9 @@ for REPO in "${REPOS[@]}"; do
   gh secret set GH_PAT -R "$REPO" --body "$GH_TOKEN"
   gh secret set GH_APP_ID -R "$REPO" --body "5586387"
   gh secret set GH_APP_CLIENT_ID -R "$REPO" --body "Iv23liISZZ2QWobzor9w"
-  gh secret set GH_APP_CLIENT_SECRET -R "$REPO" --body "3a52eeec2608264be71da49ef1ca2e1e814d2040"
+  if [ -n "${GITHUB_APP_CLIENT_SECRET:-}" ]; then
+    gh secret set GH_APP_CLIENT_SECRET -R "$REPO" --body "$GITHUB_APP_CLIENT_SECRET"
+  fi
   gh secret set GH_APP_WEBHOOK_SECRET -R "$REPO" --body "development-webhook-secret"
   gh secret set GH_APP_INSTALLATION_ID -R "$REPO" --body "177993548"
   if [ -f "$PEM_FILE" ]; then

@@ -45,5 +45,6 @@ variable "db_username" {
 variable "db_password" {
   description = "Master password for RDS PostgreSQL"
   type        = string
-  default     = "BackstageRds2026!"
+  default     = null
+  sensitive   = true
 }
