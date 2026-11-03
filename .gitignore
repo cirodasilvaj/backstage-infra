@@ -8,3 +8,5 @@ terraform.tfstate.*
 # Local snapshots and archives
 backup/snapshots/
 *.tar.gz
+*.sql
+backup/*.sql
