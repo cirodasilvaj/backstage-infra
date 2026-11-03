@@ -6,7 +6,7 @@
 set -euo pipefail
 
 echo "=================================================================="
-echo "🏥 PLATFORM END-TO-END HEALTH & SMOKE TEST SUITE"
+echo "🏥 PLATFORM END-TO-END HEALTH & SMOKE TEST SUITE (HTTPS)"
 echo "=================================================================="
 
 # Discover Domain or LoadBalancers
@@ -19,7 +19,7 @@ if [ -n "$ZONE_NAME" ]; then
 fi
 echo "=================================================================="
 
-# Function to test an HTTP endpoint
+# Function to test an HTTP/HTTPS endpoint
 test_endpoint() {
   local name="$1"
   local url="$2"
@@ -28,7 +28,7 @@ test_endpoint() {
   
   echo -n "• Testing ${name} (${url})... "
   
-  local curl_opts=(-s -L --max-time 10)
+  local curl_opts=(-s -k -L --max-time 10)
   if [ -n "$auth" ]; then
     curl_opts+=(-u "$auth")
   fi
@@ -45,47 +45,27 @@ test_endpoint() {
   fi
 }
 
-# 1. Backstage
-BS_LB=$(kubectl get svc backstage-external -n backstage -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
-BS_URL="http://${BS_LB}:7007"
-if [ -n "$ZONE_NAME" ]; then
-  BS_URL="http://backstage.${ZONE_NAME}"
-fi
 AUTH_USER=$(kubectl get secret backstage-basic-auth -n backstage -o jsonpath='{.data.username}' 2>/dev/null | base64 -d || echo "admin")
 AUTH_PASS=$(kubectl get secret backstage-basic-auth -n backstage -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo "Backstage@2026")
 
-test_endpoint "Backstage Health" "${BS_URL}/healthcheck" "ok" "" || true
-test_endpoint "Backstage Catalog API" "${BS_URL}/api/catalog/entities" "metadata" "${AUTH_USER}:${AUTH_PASS}" || true
+# 1. Backstage HTTPS
+test_endpoint "Backstage Health (HTTPS)" "https://backstage.${ZONE_NAME}/healthcheck" "ok" "" || true
+test_endpoint "Backstage Catalog API (HTTPS)" "https://backstage.${ZONE_NAME}/api/catalog/entities" "metadata" "${AUTH_USER}:${AUTH_PASS}" || true
 
-# 2. SonarQube
-SQ_LB=$(kubectl get svc sonarqube-external -n sonarqube -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
-SQ_URL="http://${SQ_LB}:9000"
-if [ -n "$ZONE_NAME" ]; then
-  SQ_URL="http://sonarqube.${ZONE_NAME}"
-fi
-test_endpoint "SonarQube System Status" "${SQ_URL}/api/system/status" "UP" "" || true
+# 2. SonarQube HTTPS
+test_endpoint "SonarQube System Status (HTTPS)" "https://sonarqube.${ZONE_NAME}/api/system/status" "UP" "" || true
 
-# 3. Grafana
-GRAFANA_LB=$(kubectl get svc grafana -n grafana -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
-GRAFANA_URL="http://${GRAFANA_LB}"
-if [ -n "$ZONE_NAME" ]; then
-  GRAFANA_URL="http://grafana.${ZONE_NAME}"
-fi
-test_endpoint "Grafana Health" "${GRAFANA_URL}/api/health" "ok" "" || true
+# 3. Grafana HTTPS
+test_endpoint "Grafana Health (HTTPS)" "https://grafana.${ZONE_NAME}/api/health" "ok" "" || true
 
-# 4. ArgoCD
-ARGO_LB=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
-ARGO_URL="https://${ARGO_LB}"
-if [ -n "$ZONE_NAME" ]; then
-  ARGO_URL="http://argocd.${ZONE_NAME}"
-fi
-test_endpoint "ArgoCD Web Console" "${ARGO_URL}" "Argo CD" "" || true
+# 4. ArgoCD HTTPS
+test_endpoint "ArgoCD Web Console (HTTPS)" "https://argocd.${ZONE_NAME}" "Argo CD" "" || true
 
-# 5. Microservices
-NODE_LB=$(kubectl get svc bkstg-made-nodejs-demo22-external -n apps-demo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
-if [ -n "$NODE_LB" ]; then
-  test_endpoint "Node.js Microservice (Live)" "http://${NODE_LB}/api/info" "Hello World" "" || true
-fi
+# 5. Workloads & Microservices HTTPS
+test_endpoint "Node.js Demo22 (HTTPS)" "https://demo22.${ZONE_NAME}/api/info" "Hello World" "" || true
+test_endpoint "Python Flask App (HTTPS)" "https://python.${ZONE_NAME}/healthz" "healthy" "" || true
+test_endpoint "Dotnet C# App (HTTPS)" "https://dotnet.${ZONE_NAME}/healthz" "healthy" "" || true
+test_endpoint "Scaffolder Starter (HTTPS)" "https://starter.${ZONE_NAME}/api/info" "scaffolder" "" || true
 
 echo "=================================================================="
 echo "📊 KUBERNETES WORKLOAD SUMMARY"

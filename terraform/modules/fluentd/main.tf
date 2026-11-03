@@ -65,26 +65,32 @@ resource "helm_release" "fluentd" {
           </source>
         EOT
         "04_outputs.conf" = <<-EOT
+          <label @OUTPUT>
+            <match **>
+              @type copy
+              <store>
+                @type loki
+                url "http://loki.grafana.svc.cluster.local:3100"
+                extra_labels {"job":"fluentd","collector":"fluentd-daemonset"}
+                flush_interval 5s
+                flush_at_shutdown true
+                buffer_chunk_limit 1m
+                <label>
+                  stream
+                  namespace $.kubernetes.namespace_name
+                  pod $.kubernetes.pod_name
+                  container $.kubernetes.container_name
+                  app $.app
+                </label>
+              </store>
+              <store>
+                @type stdout
+              </store>
+            </match>
+          </label>
           <match **>
-            @type copy
-            <store>
-              @type loki
-              url "http://loki.grafana.svc.cluster.local:3100"
-              extra_labels {"job":"fluentd","collector":"fluentd-daemonset"}
-              flush_interval 5s
-              flush_at_shutdown true
-              buffer_chunk_limit 1m
-              <label>
-                stream
-                namespace $.kubernetes.namespace_name
-                pod $.kubernetes.pod_name
-                container $.kubernetes.container_name
-                app $.app
-              </label>
-            </store>
-            <store>
-              @type stdout
-            </store>
+            @type relabel
+            @label @OUTPUT
           </match>
         EOT
       }
