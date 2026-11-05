@@ -93,6 +93,8 @@ fi
 SERVICES=(
   "python:apps-demo:python-app"
   "dotnet:apps-demo:dotnet-csharp-app"
+  "demo22:apps-demo:bkstg-made-nodejs-demo22-external"
+  "starter:apps-demo:scaffolder-starter-microservice-external"
 )
 
 CHANGES=()
