@@ -58,11 +58,11 @@ spec:
             - name: SONAR_SEARCH_JAVAADDITIONALOPTS
               value: "-Dnode.store.allow_mmap=false"
             - name: SONAR_WEB_JAVAOPTS
-              value: "-Xmx512m -Xms128m"
+              value: "-Xmx384m -Xms128m"
             - name: SONAR_CE_JAVAOPTS
-              value: "-Xmx512m -Xms128m"
+              value: "-Xmx384m -Xms128m"
             - name: SONAR_SEARCH_JAVAOPTS
-              value: "-Xmx512m -Xms512m"
+              value: "-Xmx384m -Xms256m"
             - name: SONAR_JDBC_URL
               valueFrom:
                 secretKeyRef:
@@ -128,11 +128,11 @@ spec:
             failureThreshold: 10
           resources:
             requests:
-              cpu: 200m
-              memory: 1536Mi
+              cpu: 100m
+              memory: 1024Mi
             limits:
               cpu: 1000m
-              memory: 2560Mi
+              memory: 1800Mi
       volumes:
         - name: sonarqube-extensions-plugins
           emptyDir: {}
