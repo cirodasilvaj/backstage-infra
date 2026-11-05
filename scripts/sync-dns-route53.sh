@@ -88,6 +88,26 @@ if [ -n "$VAL_NAME" ] && [ "$VAL_NAME" != "None" ]; then
 fi
 
 # ------------------------------------------------------------------------------
+# Ensure HTTPS (port 443) and ACM SSL Certificate on all Platform Services
+# ------------------------------------------------------------------------------
+echo "🔒 Ensuring HTTPS (port 443) on platform load balancers with ACM certificate..."
+for item in "argocd:argocd-external:8080" "grafana:grafana-external:3000" "sonarqube:sonarqube-external:9000"; do
+  IFS=":" read -r NS SVC TARGET_PORT <<< "$item"
+  if kubectl get svc "$SVC" -n "$NS" >/dev/null 2>&1; then
+    kubectl annotate svc "$SVC" -n "$NS" \
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol=http" \
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-cert=$CERT_ARN" \
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-ports=https" --overwrite >/dev/null 2>&1 || true
+    
+    if ! kubectl get svc "$SVC" -n "$NS" -o jsonpath='{.spec.ports[*].port}' 2>/dev/null | grep -qw "443"; then
+      kubectl patch svc "$SVC" -n "$NS" --type="json" -p="[
+        {\"op\": \"add\", \"path\": \"/spec/ports/-\", \"value\": {\"name\": \"https\", \"port\": 443, \"targetPort\": ${TARGET_PORT}, \"protocol\": \"TCP\"}}
+      ]" >/dev/null 2>&1 || true
+    fi
+  fi
+done
+
+# ------------------------------------------------------------------------------
 # Demo Apps CNAME Step
 # ------------------------------------------------------------------------------
 SERVICES=(
