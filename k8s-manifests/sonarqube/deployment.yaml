@@ -62,7 +62,7 @@ spec:
             - name: SONAR_CE_JAVAOPTS
               value: "-Xmx384m -Xms128m"
             - name: SONAR_SEARCH_JAVAOPTS
-              value: "-Xmx384m -Xms256m"
+              value: "-Xmx384m -Xms384m"
             - name: SONAR_JDBC_URL
               valueFrom:
                 secretKeyRef:
